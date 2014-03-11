@@ -5,6 +5,10 @@ stty cols 120
 
 cmds_all="`man -P cat ovs-vswitchd | cut -c8- | sed -n '/^[a-z]\+\/[a-z]\+.*$/p'`"
 
+subcmds_uniq=`man -P cat ovs-vswitchd | cut -c8- | sed -n '/^[a-z]\+\/[a-z]\+.*$/p' | cut -d ' ' -f1`
+
+
+
 echo "$cmds_all" |  while read -r line
 do
     declare -a options
@@ -19,33 +23,49 @@ do
 	# parse the word,
 	case "$i" in
 	    \[*\])
-		options[idx]="$i"
+		options[$idx]="$i"
 		;;
 	    \[*)
-		options[idx]="$i]"
+		options[$idx]="$i]"
 		;;
 	    *\])
-		options[idx]="[$i"
+		options[$idx]="[$i"
 		;;
 	    \|)
 		continue
 		;;
 	    *)
-		options[idx]="$i"
+		options[$idx]="$i"
 		((level++))
-	    ;;
+		;;
 	esac
 
 	((idx++))
 
-	# print out the options at this level
 	if [ $old_level -ne $level ]
 	then
-	    echo "level $level"
-	    echo "options are: ${options[*]}"
-
 	    ((idx=0))
 	    unset options
 	fi
     done
+    unset options
 done
+
+
+#
+_appctl_complete()
+{
+  local cur prev
+
+  COMPREPLY=()
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+
+  if [ $COMP_CWORD -eq 1 ]; then
+    COMPREPLY=( $(compgen -W "$subcmds_uniq" -- $cur) )
+  fi
+
+  return 0
+}
+
+complete -F _appctl_complete ovs-appctl
