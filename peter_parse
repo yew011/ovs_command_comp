@@ -1,0 +1,41 @@
+init
+show
+[--may-exist] add-br BRIDGE [PARENT] [VLAN]
+[--if-exists] del-br BRIDGE
+[--real] [--fake] list-br
+br-exists BRIDGE
+br-to-vlan BRIDGE
+br-to-parent BRIDGE
+br-set-external-id BRIDGE KEY [VALUE]
+br-get-external-id BRIDGE [KEY]
+list-ports BRIDGE
+[--may-exist] add-port BRIDGE PORT [column:[key]=value]
+[--may-exist] [--fake-iface] add-bond BRIDGE PORT IFACE [column[:key]=value]
+[--if-exists] [--with-iface] del-port [BRIDGE] PORT|IFACE
+port-to-br PORT
+list-ifaces BRIDGE
+iface-to-br IFACE
+get-controller BRIDGE
+del-controller BRIDGE
+set-controller BRIDGE TARGET
+get-fail-mode BRIDGE
+del-fail-mode BRIDGE
+set-fail-mode BRIDGE MODE
+get-manager
+del-manager
+set-manager TARGET
+get-ssl
+del-ssl
+[--bootstrap] set-ssl PRIVATE-KEY CERTIFICATE CA-CERT
+emer-reset
+comment ARG
+[--if-exists] [--id=] get TABLE RECORD [COLUMN[:KEY]]
+[--if-exists] [--columns=] list TABLE [RECORD]
+[--columns=] find TABLE [COLUMN[:KEY]=VALUE]
+[--if-exists] set TABLE RECORD COLUMN[:KEY]=VALUE
+[--if-exists] add TABLE RECORD COLUMN [KEY=]VALUE
+[--if-exists] remove TABLE RECORD COLUMN KEY|VALUE|KEY=VALUE
+[--if-exists] clear TABLE RECORD COLUMN
+[--id=] create TABLE COLUMN[:KEY]=VALUE
+[--if-exists] [--all] destroy TABLE RECORD
+wait-until TABLE RECORD [COLUMN[:KEY]=VALUE]
