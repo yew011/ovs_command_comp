@@ -1,5 +1,8 @@
 #!/bin/bash
 
+export LC_ALL=C
+COMP_WORDBREAKS=' '
+
 _ovs_vsctl_complete() {
   local cur prev ret
   local input=()
@@ -10,7 +13,7 @@ _ovs_vsctl_complete() {
 
   # check what the current word should be.
   input=(${COMP_WORDS[@]:1:COMP_CWORD-1})
-  ret="`./ovs_bash_comp_helper.sh \"${input[@]}\"`"
+  ret="`./ovs_bash_comp_helper.sh \"${input[*]}\"`"
 
   COMPREPLY=( $(compgen -W "$ret" -- $cur) )
 
