@@ -4,7 +4,7 @@
 CUR_COLS="`tput cols`"
 stty cols 1024
 
-rm __ovs_vsctl_*_extract.tmp 2>/dev/null
+rm __ovs_vsctl_*_extract.tmp 1>&2 2>/dev/null
 
 VSCTL_SUBCMDS="`ovs-vsctl --help | sed -e '/Options/q0' | sed -n '/^  .*$/p' \
                | cut -c3- | cut -d ' ' -f1 | uniq`"

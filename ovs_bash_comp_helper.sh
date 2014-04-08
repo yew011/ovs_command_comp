@@ -1,10 +1,10 @@
 #!/bin/bash
 
-rm __ovs_bash_comp_helper.tmp 2>/dev/null
+rm __ovs_bash_comp_helper.tmp 1>&2 2>/dev/null
 
-cat vsctl-commands.tmp > __ovs_vsctl_full_subcmd_extract.tmp
-cat vsctl-options.tmp > __ovs_vsctl_full_option_extract.tmp
-cat vsctl-prefix-options.tmp > __ovs_vsctl_subcmd_prefix_option_extract.tmp
+cat vsctl-commands.tmp 1>__ovs_vsctl_full_subcmd_extract.tmp 2>/dev/null
+cat vsctl-options.tmp 1>__ovs_vsctl_full_option_extract.tmp 2>/dev/null
+cat vsctl-prefix-options.tmp 1>__ovs_vsctl_subcmd_prefix_option_extract.tmp 2>/dev/null
 
 LINE_SO_FAR=($@)
 
