@@ -25,6 +25,7 @@ ofproto/trace bridge br_flow [-generate|packet]
 
 argument keyword (optional) "dpname" is expanded to: ovs-system ovs-netdev 
 argument keyword "bridge" is expanded to: br0 
--consistent  br0          odp_flow     ovs-netdev   ovs-system   
+br0         odp_flow    ovs-netdev  ovs-system  
+
 
 </pre>
