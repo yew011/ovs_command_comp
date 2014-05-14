@@ -3,6 +3,7 @@ ovs_command_comp
 
 Open Vswitch Command Completion, Bash~
 
+Requirement: Open Vswitch installed.
 
 To run the script:
 root@promg-2n-a-dhcp85:~/ovs_command_comp# . ovs_appctl_compgen.sh
