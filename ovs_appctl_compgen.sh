@@ -149,7 +149,6 @@ kword_to_args() {
 	esac
 	ARGS+=( "${args[@]}" )
 	if [ -n "$is_kword" ]; then
-	    KWORD_EXPANDED="true"
 	    printf "\n"
 	    printf "argument keyword%s \"%s\" is expanded to: " "$optional" \
 		$trimmed_word
@@ -210,7 +209,9 @@ ovs_appctl_comp_helper() {
 	fi
     else
 	printf "\n"
-	awk -v opt=$subcmd '$1 == opt {print $0}' .__ovs_appctl_subcommands.comp
+	printf "%s" "`awk -v opt=$subcmd '$1 == opt {print $0}' \
+                      .__ovs_appctl_subcommands.comp`"
+	KWORD_EXPANDED="true"
 	cp .__ovs_appctl_subcmds.comp .___tmp.tmp
 
         # $j stores the index of the subcmd in cmd_line_so_far.
@@ -254,9 +255,8 @@ _ovs_appctl_complete() {
       COMP_IDX=$COMP_CWORD
   fi
 
-  # If the number of completions is one and we already added the new line
   if [ -n "$KWORD_EXPANDED" ] \
-      && [ "`echo $COMP_WORDLIST | tr ' ' '\n' | wc -l`" -eq "1" ]; then
+      && [ "`echo $COMP_WORDLIST | tr ' ' '\n' | wc -l`" -le "1" ]; then
       printf "\n$USER@$HOSTNAME:$PWD#"
       printf -- ' %s' "${COMP_WORDS[@]}"
   fi
