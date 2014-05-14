@@ -225,9 +225,9 @@ ovs_appctl_comp_helper() {
 	    fi
 
 	    for word in ${iter[@]}; do
-		awk -v opt=$word '$1 ~ opt {$1=""; print $0}' \
+		awk -v opt=$word '$1 == opt {$1=""; print $0}' \
 		    .___tmp.tmp | cut -c2- >> .___tmp.tmp.tmp
-		awk -v opt=*$word '$1 ~ opt {$1=""; print $0}' \
+		awk -v opt=*$word '$1 == opt {$1=""; print $0}' \
 		    .___tmp.tmp | cut -c2- >> .___tmp.tmp.tmp
 	    done
 	    cat .___tmp.tmp.tmp > .___tmp.tmp
@@ -261,7 +261,8 @@ _ovs_appctl_complete() {
       printf -- ' %s' "${COMP_WORDS[@]}"
   fi
 
-  COMPREPLY=( $(compgen -W "$COMP_WORDLIST" -- $cur) )
+  COMPREPLY=( $(compgen -W "`echo $COMP_WORDLIST | tr ' ' '\n' | sort \
+                             | uniq`" -- $cur) )
 
   return 0
 }
