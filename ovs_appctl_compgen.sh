@@ -227,6 +227,8 @@ ovs_appctl_comp_helper() {
 	    for word in ${iter[@]}; do
 		awk -v opt=$word '$1 ~ opt {$1=""; print $0}' \
 		    .___tmp.tmp | cut -c2- >> .___tmp.tmp.tmp
+		awk -v opt=*$word '$1 ~ opt {$1=""; print $0}' \
+		    .___tmp.tmp | cut -c2- >> .___tmp.tmp.tmp
 	    done
 	    cat .___tmp.tmp.tmp > .___tmp.tmp
 	done
