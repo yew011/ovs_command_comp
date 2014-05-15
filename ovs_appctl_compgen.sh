@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# A bash command completion script for ovs-appctl.
+
+# Keywords
+# ========
+#
 # Expandable keywords.
 KWORDS=(bridge port interface dpname br_flow odp_flow)
 # Arguments after keyword expansion.
@@ -15,8 +20,11 @@ PRINTF_ENABLE=
 # Printf keyword expansion string once.
 PRINTF_KWORD_EXPAND_ONCE=
 
+# Command Extraction
+# ==================
+#
 # This function parses the ovs-appctl and ovs-vswitchd manpage,
-# and generates three files.
+# for all ovs-appctl sub-commands and generates three files.
 #
 # 1. File containing all full subcommands.
 #    .__ovs_appctl_subcommands.comp
@@ -28,8 +36,10 @@ PRINTF_KWORD_EXPAND_ONCE=
 # This function assumes the ovs-appctl sub-commands will always have
 # 'ovs-appctl module/function ...' format.
 #
+# Note, optional argument will have a leading *.
 extract_subcmd_opts() {
-    # trick the console. ;D
+    local line name arg opts_tmp nlines opt
+    # Tricks the console, so subcommands are all in one line.
     local cur_cols="`tput cols`"
     stty cols 1024
 
@@ -48,9 +58,9 @@ extract_subcmd_opts() {
     # Finds all combinations of each sub-command.
     touch .__ovs_appctl_subcmds.tmp
     while read line; do
-	echo -en "\n" > .__ovs_appctl_subcmds.tmp
+	printf "\n" > .__ovs_appctl_subcmds.tmp
 	for arg in $line; do
-            # If it is an optional argument, must expand the existing
+            # If it is an optional argument, expands the existing
             # combinations.
 	    if [ ! -z "`grep -- \"\[*\]\" <<< \"$arg\"`" ]; then
 		opts_tmp="`sed -n 's/^\[\(.*\)\]$/\1/p' <<< $arg`"
@@ -62,7 +72,7 @@ extract_subcmd_opts() {
 			sed "s@\$@ *${opt}@g" >> .__ovs_appctl_subcmds.tmp
 		done
 	    else
-                # Else just append the argument to the end of each
+                # Else just appends the argument to the end of each
                 # combination.
 		sed "s@\$@ ${arg}@g" -i .__ovs_appctl_subcmds.tmp
 	    fi
@@ -76,7 +86,11 @@ extract_subcmd_opts() {
     eval stty cols $cur_cols
 }
 
-# Helper functions.
+# Helpers
+# =======
+#
+# Converts the argument (e.g. bridge/port/interface name) to the corresponding
+# keyword.
 arg_to_kword() {
     local word
     local var="$1"
@@ -90,6 +104,7 @@ arg_to_kword() {
 		    | cut -d ':' -f2 | sed -e 's/^"//' -e 's/"$//' \
 		    | grep "$var" > .___arg2kword.tmp
 		if [ -s .___arg2kword.tmp ]; then
+		    # Abbrev of bridge/port/interface.
 		    echo "bpi"
 		    return
 		fi
@@ -120,6 +135,7 @@ arg_to_kword() {
     echo "$var"
 }
 
+# Expands the keyword to the corresponding instance names.
 kword_to_args() {
     local word trimmed_word optional is_kword
     local vars=($@)
@@ -130,12 +146,14 @@ kword_to_args() {
 	optional=
 	is_kword=
 
+	# Cuts the first character is the argument is optional.
 	if [ "${word:0:1}" == "*" ]; then
 	    optional=" (optional)"
 	    trimmed_word="${word:1}"
 	else
 	    trimmed_word="${word}"
 	fi
+
 	case "${trimmed_word}" in
 	    bridge|port|interface)
 		args=($(ovs-vsctl --columns=name list $trimmed_word \
@@ -165,15 +183,18 @@ kword_to_args() {
     done
 }
 
-# Parsing function.
-# This script will take the current command line arguments as input,
+# Parser
+# ======
+#
+# This script takes the current command line arguments as input,
 # find the command format and returns the possible completions.
 ovs_appctl_comp_helper() {
     local cmd_line_so_far=($@)
     local iter=()
-    local subcmd kword args no_opt comp_wordlist line
+    local subcmd kword args no_opt comp_wordlist line arg
     local j=-1
 
+    # Extracts the subcmds only when needed.
     if [ ! -e .__ovs_appctl_subcommands.comp ] \
 	|| [ ! -e .__ovs_appctl_subcmds.comp ] \
 	|| [ ! -e .__ovs_appctl_opts.comp ]; then
@@ -184,6 +205,7 @@ ovs_appctl_comp_helper() {
     PRINTF_KWORD_EXPAND_ONCE=
     ARGS=()
 
+    # Tries locating the sub-command.
     for i in "${!cmd_line_so_far[@]}"; do
 	if [ $i -le $j ]; then continue; fi
 	j=$i
@@ -210,6 +232,8 @@ ovs_appctl_comp_helper() {
 	break
     done
 
+    # If subcommand is not found, should present all available completions.
+    # Otherwise, start parsing the input arguments.
     if [ -z "$subcmd" ]; then
         # If no comment, all options/subcmds are available.
 	if [ -z "$no_opt" ]; then
@@ -233,6 +257,8 @@ ovs_appctl_comp_helper() {
 	cp .__ovs_appctl_subcmds.comp .___tmp.tmp
 
         # $j stores the index of the subcmd in cmd_line_so_far.
+	# Now, starts from the first argument, narrows down the
+	# subcommand format combinations.
 	for arg in "${cmd_line_so_far[@]:$j}"; do
 	    > .___tmp.tmp.tmp
 
@@ -260,6 +286,9 @@ ovs_appctl_comp_helper() {
 
 export LC_ALL=C
 
+# Compgen
+# =======
+#
 # The compgen function.
 _ovs_appctl_complete() {
   local cur prev
@@ -267,6 +296,7 @@ _ovs_appctl_complete() {
   COMPREPLY=()
   cur=${COMP_WORDS[COMP_CWORD]}
 
+  # Do not print anything at first [TAB] execution.
   if [ "$COMP_TYPE" -eq "9" ]; then
       PRINTF_ENABLE=""
   else
@@ -279,6 +309,11 @@ _ovs_appctl_complete() {
       COMP_IDX=$COMP_CWORD
   fi
 
+  # If there is only one expanded keyword, and the keyword expands to only
+  # one instance name, the completion will fill in the name automatically.
+  # This caused a confusing display in the output (i.e. a new line with only
+  # the name).  To fix this, we will print a fake comand line.
+  # Otherwise, prints the help message to separate completions.
   if [ -n "$KWORD_EXPANDED" ] \
       && [ "`echo $COMP_WORDLIST | tr ' ' '\n' | wc -l`" -le "1" ] \
       && [ -n "$PRINTF_ENABLE" ] ; then
