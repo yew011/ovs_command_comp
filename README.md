@@ -13,6 +13,9 @@ root@promg-2n-a-dhcp85:~/ovs_command_comp# . ovs_appctl_compgen.sh
 Example output:
 
 root@promg-2n-a-dhcp85:~/ovs_command_comp# ovs-appctl 
+
+Available completions:
+
 --help                    bond/enable-slave         bridge/dump-flows         dpif/dump-dps             memory/show               stp/tcn
 --target=                 bond/hash                 bridge/reconnect          dpif/dump-flows           ofproto/list              vlog/disable-rate-limit
 --version                 bond/list                 cfm/set-fault             dpif/show                 ofproto/self-check        vlog/enable-rate-limit
@@ -20,12 +23,18 @@ bfd/set-forwarding        bond/migrate              cfm/show                  fd
 bfd/show                  bond/set-active-slave     coverage/show             fdb/show                  ofproto/trace-packet-out  vlog/reopen
 bond/disable-slave        bond/show                 dpif/del-flows            lacp/show                 qos/show                  vlog/set
 
-root@promg-2n-a-dhcp85:~/ovs_command_comp# ovs-appctl ofproto/trace 
-ofproto/trace [dpname] odp_flow [-generate|packet]
-ofproto/trace bridge br_flow [-generate|packet]
 
-argument keyword (optional) "dpname" is expanded to: ovs-system ovs-netdev 
-argument keyword "bridge" is expanded to: br0 
+root@promg-2n-a-dhcp85:~/ovs_command_comp# ovs-appctl ofproto/trace 
+Command format:
+    ofproto/trace [dpname] odp_flow [-generate|packet]
+    ofproto/trace bridge br_flow [-generate|packet]
+
+Argument expansion:
+    argument keyword (optional) "dpname" is expanded to: ovs-system ovs-netdev 
+    argument keyword "bridge" is expanded to: br0 
+
+Available completions:
+
 br0         odp_flow    ovs-netdev  ovs-system  
 
 
