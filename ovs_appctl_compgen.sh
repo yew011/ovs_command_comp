@@ -10,6 +10,10 @@ COMP_WORDLIST=
 COMP_IDX=-1
 # Keyword expanded.
 KWORD_EXPANDED=
+# Printf enabler.
+PRINTF_ENABLE=
+# Printf keyword expansion string once.
+PRINTF_KWORD_EXPAND_ONCE=
 
 # This function parses the ovs-appctl and ovs-vswitchd manpage,
 # and generates three files.
@@ -86,25 +90,25 @@ arg_to_kword() {
 		    | cut -d ':' -f2 | sed -e 's/^"//' -e 's/"$//' \
 		    | grep "$var" > .___arg2kword.tmp
 		if [ -s .___arg2kword.tmp ]; then
-		    printf "bpi\n"
+		    echo "bpi"
 		    return
 		fi
 		;;
             dpname)
 		if [[ $var =~ ovs-system|ovs-netdev ]]; then
-		    printf "dpname\n"
+		    echo "dpname"
 		    return
 		fi
 		;;
 	    br_flow)
 		if [[ $var =~ "in_port=" ]]; then
-		    printf "br_flow\n"
+		    echo "br_flow"
 		    return
 		fi
 		;;
 	    odp_flow)
 		if [[ $var =~ "in_port(" ]]; then
-		    printf "odp_flow\n"
+		    echo "odp_flow"
 		    return
 		fi
 		;;
@@ -113,7 +117,7 @@ arg_to_kword() {
 		;;
 	esac
     done
-    printf "%s\n" $var
+    echo "$var"
 }
 
 kword_to_args() {
@@ -148,9 +152,13 @@ kword_to_args() {
 		;;
 	esac
 	ARGS+=( "${args[@]}" )
-	if [ -n "$is_kword" ]; then
+	if [ -n "$is_kword" ] && [ -n "$PRINTF_ENABLE" ]; then
 	    printf "\n"
-	    printf "argument keyword%s \"%s\" is expanded to: " "$optional" \
+	    if [ -z "$PRINTF_KWORD_EXPAND_ONCE" ]; then
+		PRINTF_KWORD_EXPAND_ONCE="once"
+		printf "Argument expansion:\n"
+	    fi
+	    printf "    argument keyword%s \"%s\" is expanded to: " "$optional" \
 		$trimmed_word
 	    printf "%s " ${args[@]}
 	fi
@@ -163,7 +171,7 @@ kword_to_args() {
 ovs_appctl_comp_helper() {
     local cmd_line_so_far=($@)
     local iter=()
-    local subcmd kword args no_opt comp_wordlist
+    local subcmd kword args no_opt comp_wordlist line
     local j=-1
 
     if [ ! -e .__ovs_appctl_subcommands.comp ] \
@@ -173,6 +181,7 @@ ovs_appctl_comp_helper() {
     fi
 
     KWORD_EXPANDED=
+    PRINTF_KWORD_EXPAND_ONCE=
     ARGS=()
 
     for i in "${!cmd_line_so_far[@]}"; do
@@ -186,10 +195,12 @@ ovs_appctl_comp_helper() {
 		    ((j++))
 		else
 		    KWORD_EXPANDED="true"
-		    printf "\n"
 		    COMP_WORDLIST="`grep -- "${cmd_line_so_far[j-1]}" \
                         __ovs_appctl_opts.comp | cut -d '=' -f2`"
-		    printf "Option takes in: %s" $COMP_WORDLIST
+		    if [ -n "$PRINTF_ENABLE" ]; then
+			printf "\n"
+			printf "Option takes in: %s" $COMP_WORDLIST
+		    fi
 		    return
 		fi
             fi
@@ -208,9 +219,16 @@ ovs_appctl_comp_helper() {
 	    comp_wordlist="`cat .__ovs_appctl_subcmds.comp | cut -d ' ' -f1`"
 	fi
     else
-	printf "\n"
-	printf "%s" "`awk -v opt=$subcmd '$1 == opt {print $0}' \
-                      .__ovs_appctl_subcommands.comp`"
+	if [ -n "$PRINTF_ENABLE" ]; then
+	    printf "\n"
+	    printf "Command format:\n"
+	    while read -r line
+	    do
+		printf "    %s\n" "$line"
+	    done <<< "`awk -v opt=$subcmd '$1 == opt {print $0}' \
+                       .__ovs_appctl_subcommands.comp`"
+	fi
+
 	KWORD_EXPANDED="true"
 	cp .__ovs_appctl_subcmds.comp .___tmp.tmp
 
@@ -249,6 +267,12 @@ _ovs_appctl_complete() {
   COMPREPLY=()
   cur=${COMP_WORDS[COMP_CWORD]}
 
+  if [ "$COMP_TYPE" -eq "9" ]; then
+      PRINTF_ENABLE=""
+  else
+      PRINTF_ENABLE="enabled"
+  fi
+
   # Important to skip unwanted printf to stdout.
   if [ -z "$cur" ] || [ $COMP_CWORD -ne $COMP_IDX ]; then
       ovs_appctl_comp_helper ${COMP_WORDS[@]:1:COMP_CWORD-1}
@@ -256,9 +280,13 @@ _ovs_appctl_complete() {
   fi
 
   if [ -n "$KWORD_EXPANDED" ] \
-      && [ "`echo $COMP_WORDLIST | tr ' ' '\n' | wc -l`" -le "1" ]; then
+      && [ "`echo $COMP_WORDLIST | tr ' ' '\n' | wc -l`" -le "1" ] \
+      && [ -n "$PRINTF_ENABLE" ] ; then
       printf "\n$USER@$HOSTNAME:$PWD#"
       printf -- ' %s' "${COMP_WORDS[@]}"
+  elif [ -n "$PRINTF_ENABLE" ]; then
+      printf "\n\n"
+      printf "Available completions:\n"
   fi
 
   COMPREPLY=( $(compgen -W "`echo $COMP_WORDLIST | tr ' ' '\n' | sort \
