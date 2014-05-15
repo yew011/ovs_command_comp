@@ -319,7 +319,8 @@ _ovs_appctl_complete() {
       && [ -n "$PRINTF_ENABLE" ] ; then
       printf "\n$USER@$HOSTNAME:$PWD#"
       printf -- ' %s' "${COMP_WORDS[@]}"
-  elif [ -n "$PRINTF_ENABLE" ]; then
+  elif [ -n "$PRINTF_ENABLE" ] \
+      && [ -n "`echo $COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur"`" ]; then
       printf "\n\n"
       printf "Available completions:\n"
   fi
