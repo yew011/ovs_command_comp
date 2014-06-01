@@ -162,7 +162,7 @@ arg_to_kword() {
     for kword in ${_KWORDS[@]}; do
 	local match
 
-	case "$word" in
+	case "$kword" in
             bridge|port|interface)
 		match="$(ovs-vsctl --columns=name list $kword | tr -d ' ' \
 		    | cut -d ':' -f2 | sed -e 's/^"//' -e 's/"$//' \
@@ -266,7 +266,7 @@ parse_and_compgen() {
     local subcmd_line=($@)
     local subcmd=${subcmd_line[0]}
     local daemon=$_APPCTL_TARGET
-    local subcmd_combinations subcmd_combinations_copy subcmd_format arg
+    local subcmd_combinations subcmd_format arg
     local comp_wordlist=""
 
     # Extracts the subcommand format.
@@ -277,6 +277,9 @@ parse_and_compgen() {
 	subcmd_format="$subcmd"
     fi
 
+    # Prints subcommand format.
+    printf_stderr "`printf "\nCommand format:\n%s" "$subcmd_format"`"
+
     # Finds all subcmd combinations.
     subcmd_combinations="$(subcmd_find_combinations "$subcmd_format")"
 
@@ -284,6 +287,7 @@ parse_and_compgen() {
     # subcommand format combinations.
     for arg in "${cmd_line_so_far[@]:$j}"; do
 	local kword word
+	local subcmd_combinations_copy=
 	local iter=()
 
 	kword="$(arg_to_kword $arg)"
@@ -294,19 +298,17 @@ parse_and_compgen() {
 	fi
 
 	for word in ${iter[@]}; do
-	    local narrow_1 narrow_2
+	    local narrow_1 narrow_2 narrow
 
 	    narrow_1="$(awk -v opt=$word '$1 == opt {$1=""; print $0}' \
                         <<< "$subcmd_combinations" | cut -c2-)"
 	    narrow_2="$(awk -v opt=*$word '$1 == opt {$1=""; print $0}' \
                         <<< "`echo "$subcmd_combinations"`" | cut -c2-)"
-   	    subcmd_combinations_copy="`printf "%s\n%s" "$narrow_1" "$narrow_2" `"
+   	    narrow="`printf "%s\n%s" "$narrow_1" "$narrow_2" `"
+	    subcmd_combinations_copy="$subcmd_combinations_copy$narrow"
 	done
 	subcmd_combinations="$subcmd_combinations_copy"
     done
-
-    # Prints subcmd format only when there is match.
-    printf_stderr "`printf "\nCommand format:\n%s" "$subcmd_format"`"
 
     comp_wordlist="$(kword_to_args `awk '{print $1}' <<< "$subcmd_combinations" | sort | uniq`)"
 
