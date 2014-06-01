@@ -64,7 +64,8 @@ extract_daemons() {
 	    local stderr_workaround
 
 	    stderr_workaround="$(MANWIDTH=2048 man -P cat $daemon 2>/dev/null)"
-	    if [ -n "`grep -- "^RUNTIME MANAGEMENT COMMANDS" <<< "$stderr_workaround"`" ]; then
+	    if [ -n "`grep -- "^RUNTIME MANAGEMENT COMMANDS" <<< \
+                 "$stderr_workaround"`" ]; then
 		_APPCTL_TARGET_DAEMONS+=($daemon)
 	    fi
 	done
@@ -102,12 +103,14 @@ subcmd_find_combinations() {
 
 		    combinations_tmp="$(head -$nlines <<< "$combinations_new" | \
 			sed "s@\$@ *${opt}@g")"
-		    combinations_new="$(printf "%s\n%s\n" "$combinations_new" "$combinations_tmp")"
+		    combinations_new="$(printf "%s\n%s\n" "$combinations_new" \
+                                        "$combinations_tmp")"
 		done
 	    else
                 # Else just appends the argument to the end of each
                 # combination.
-		combinations_new="$(sed "s@\$@ ${arg}@g" <<< "$combinations_new")"
+		combinations_new="$(sed "s@\$@ ${arg}@g" <<< \
+                                    "$combinations_new")"
 	    fi
 	done
 	combinations="$(printf "%s\n%s\n" "$combinations" "$combinations_new")"
@@ -242,8 +245,9 @@ kword_to_args() {
 		printf_expand_once="once"
 		printf -v output_stderr "\nArgument expansion:\n"
 	    fi
-	    printf -v output_stderr "$output_stderr     argument keyword%s \"%s\" is expanded to: %s " \
-		"$optional" "$trimmed_kword" "${new_args[*]}"
+	    printf -v output_stderr "$output_stderr     argument keyword%s \
+                \"%s\" is expanded to: %s " "$optional" \
+                 "$trimmed_kword" "${new_args[*]}"
 
 	    printf_stderr "$output_stderr"
 	fi
@@ -310,7 +314,8 @@ parse_and_compgen() {
 	subcmd_combinations="$subcmd_combinations_copy"
     done
 
-    comp_wordlist="$(kword_to_args `awk '{print $1}' <<< "$subcmd_combinations" | sort | uniq`)"
+    comp_wordlist="$(kword_to_args `awk '{print $1}' <<< "$subcmd_combinations" \
+                                    | sort | uniq`)"
 
     echo "$comp_wordlist"
 }
@@ -354,7 +359,8 @@ ovs_appctl_comp_helper() {
 		    for daemon in ${appctl_target_daemons[@]}; do
 			# Greps "$daemon" in argument, since the argument may
 			# be the path to the pid file.
-			if [ `grep -- "$daemon" <<< "${cmd_line_so_far[j+1]}"` ]; then
+			if [ `grep -- "$daemon" <<< \
+                             "${cmd_line_so_far[j+1]}"` ]; then
 			    _APPCTL_TARGET="$daemon"
 			    ((j++))
 			    break
@@ -423,7 +429,8 @@ _ovs_appctl_complete() {
   # Prints all available completions to stderr.  If there is only one matched
   # completion, do nothing.
   if [ -n "$_PRINTF_ENABLE" ] \
-      && [ -n "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur"`" ]; then
+      && [ -n "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | \
+                grep -- "^$cur"`" ]; then
       printf_stderr "\nAvailable completions:\n"
   fi
 
