@@ -8,9 +8,14 @@ Requirement: Open Vswitch installed.
 To run the script:
 root@promg-2n-a-dhcp85:~/ovs_command_comp# . ovs_appctl_compgen.sh
 
+TO-BE-FIXED:
+Conversion between arguments and keywords are not ideal.
+More work needs to be down.
+
+
+Example Output:
 ```html
 <pre>
-Example output:
 
 root@promg-2n-a-dhcp85:~/ovs_command_comp# ovs-appctl 
 
@@ -25,17 +30,18 @@ bond/disable-slave        bond/show                 dpif/del-flows            la
 
 
 root@promg-2n-a-dhcp85:~/ovs_command_comp# ovs-appctl ofproto/trace 
+
 Command format:
-    ofproto/trace [dpname] odp_flow [-generate|packet]
-    ofproto/trace bridge br_flow [-generate|packet]
+ofproto/trace [dpname] odp_flow [-generate|packet]
+ofproto/trace bridge br_flow [-generate|packet]
 
 Argument expansion:
-    argument keyword (optional) "dpname" is expanded to: ovs-system ovs-netdev 
-    argument keyword "bridge" is expanded to: br0 
+     argument keyword (optional) "dpname" is expanded to: ovs-system ovs-netdev
+     argument keyword (optional) "bridge" is expanded to: br0
+     argument keyword (optional) "odp_flow" is expanded to: odp_flow
 
 Available completions:
 
-br0         odp_flow    ovs-netdev  ovs-system  
-
+br0         odp_flow    ovs-netdev  ovs-system
 
 </pre>
