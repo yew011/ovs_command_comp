@@ -8,9 +8,11 @@
 #
 #
 # Expandable keywords.
-_KWORDS=(bridge port interface dpname br_flow odp_flow)
+_KWORDS=(bridge port interface dpname dp)
 # Printf enabler.
 _PRINTF_ENABLE=
+# Bash prompt.
+_BASH_PROMPT=
 # Target in the current completion.
 _APPCTL_TARGET="ovs-vswitchd"
 # Output to the compgen.
@@ -140,13 +142,11 @@ printf_stderr() {
 #
 # Idea inspired by:
 # http://stackoverflow.com/questions/10060500/bash-how-to-evaluate-ps1-ps2
-copy_bash_prompt() {
-    local bash_prompt
-
-    bash_prompt="$(echo want_bash_prompt_PS1 | bash -i 2>&1 \
+extract_bash_prompt() {
+    if [ -z "$_BASH_PROMPT" ]; then
+    _BASH_PROMPT="$(echo want_bash_prompt_PS1 | bash -i 2>&1 \
 	| grep want_bash_prompt_PS1| head -1 | sed 's/ want_bash_prompt_PS1//g')"
-
-    printf_stderr "$bash_prompt $@"
+    fi
 }
 
 
@@ -156,63 +156,116 @@ copy_bash_prompt() {
 #
 #
 #
+# All completion functions.
+complete_bridge () {
+    local result
+
+    result=$(ovs-vsctl list-br | grep -- "^$1")
+
+    echo  "${result}"
+}
+
+complete_port () {
+    local ports result
+    local all_ports
+
+    all_ports=$(ovs-vsctl --format=table \
+                          --no-headings \
+                          --columns=name \
+                          list Port)
+    ports=$(printf "$all_ports" | sort | tr -d '" ' | uniq -u)
+    result=$(grep -- "^$1" <<< "$ports")
+
+    echo "${result}"
+}
+
+complete_iface () {
+    local bridge bridges result
+
+    bridges=$(ovs-vsctl list-br)
+    for bridge in $bridges; do
+	local ifaces
+
+	ifaces=$(ovs-vsctl list-ifaces "${bridge}")
+	result="${result} ${ifaces}"
+    done
+
+    echo "${result}"
+}
+
+complete_dp () {
+    local dps result
+
+    dps=$(ovs-dpctl dump-dps | cut -d '@' -f2)
+    result=$(grep -- "^$1" <<< "$dps")
+
+    echo "$result"
+}
+
 # Converts the argument (e.g. bridge/port/interface name) to the corresponding
 # keyword.
 arg_to_kword() {
-    local kword
     local arg="$1"
+    local possible_kwords=($2)
+    local kword match
 
-    for kword in ${_KWORDS[@]}; do
-	local match
+    # If the to-be-completed argument is an option,
+    # echo it back directly.
+    if [[ $arg =~ ^- ]]; then
+	echo "$arg"
+	return
+    fi
+
+    for kword in ${possible_kwords[@]}; do
+	match=
 
 	case "$kword" in
-            bridge|port|interface)
-		match="$(ovs-vsctl --columns=name list $kword | tr -d ' ' \
-		    | cut -d ':' -f2 | sed -e 's/^"//' -e 's/"$//' \
-		    | grep "$arg")"
-		if [ -n "$match" ]; then
-		    # Abbrev of bridge/port/interface.
-		    echo "bpi"
-		    return
-		fi
+            bridge)
+		match="$(complete_bridge "$arg")"
 		;;
-            dpname)
-		if [[ $arg =~ ovs-system|ovs-netdev ]]; then
-		    echo "dpname"
-		    return
-		fi
+	    port)
+		match="$(complete_port "$arg")"
 		;;
-	    br_flow)
-		if [[ $arg =~ "in_port=" ]]; then
-		    echo "br_flow"
-		    return
-		fi
+	    interface)
+		match="$(complete_iface "$arg")"
 		;;
-	    odp_flow)
-		if [[ $arg =~ "in_port(" ]]; then
-		    echo "odp_flow"
-		    return
-		fi
+            dpname|dp)
+		match="$(complete_dp "$arg")"
+		;;
+	    remote)
+		match="$(complete_remote "$arg")"
 		;;
 	    *)
 		continue
 		;;
 	esac
+
+	if [ -n "$match" ]; then
+	    echo "$kword"
+	    return
+	fi
     done
 
-    # If no matched keyword found, return the input.
-    echo "$arg"
+    # If there is only on possible kword and it is not a kword,
+    # just assume the user input it.
+    if [ "${#possible_kwords[@]}" -eq "1" ]; then
+	echo "$possible_kwords"
+	return
+    fi
+
+    echo "NOMATCH"
 }
 
 # Expands the keyword to the corresponding instance names.
 kword_to_args() {
-    local kword
-    local input=($@)
+    local possible_kwords=($@)
     local args=()
+    local kword
 
-    for kword in ${input[@]}; do
-	local trimmed_kword optional is_kword
-	local new_args=()
+    for kword in ${possible_kwords[@]}; do
+	local trimmed_kword=
+	local optional=
+	local match=
 
 	# Cuts the first character is the argument is optional.
 	if [ "${kword:0:1}" == "*" ]; then
@@ -223,22 +276,31 @@ kword_to_args() {
 	fi
 
 	case "${trimmed_kword}" in
-	    bridge|port|interface)
-		new_args=($(ovs-vsctl --columns=name list $trimmed_kword \
-		    | tr -d ' ' | cut -d ':' -f2 \
-		    | sed -e 's/^"//' -e 's/"$//'))
-		is_kword="kword"
+            bridge)
+		match="$(complete_bridge "")"
 		;;
-	    dpname)
-		new_args=(ovs-system ovs-netdev)
-		is_kword="kword"
+	    port)
+		match="$(complete_port "")"
+		;;
+	    interface)
+		match="$(complete_iface "")"
+		;;
+            dpname|dp)
+		match="$(complete_dp "")"
+		;;
+	    remote)
+		match="$(complete_remote "")"
+		;;
+	    -*)
+		# Treats option as kword as well.
+		match="$trimmed_kword"
 		;;
 	    *)
-		new_args=($trimmed_kword)
+		match=($trimmed_kword)
 		;;
 	esac
-	args+=( ${new_args[@]} )
-	if [ -n "$is_kword" ] && [ -n "$_PRINTF_ENABLE" ]; then
+	args+=( $match )
+	if [ -n "$_PRINTF_ENABLE" ]; then
 	    local output_stderr=
 
 	    if [ -z "$printf_expand_once" ]; then
@@ -246,8 +308,7 @@ kword_to_args() {
 		printf -v output_stderr "\nArgument expansion:\n"
 	    fi
 	    printf -v output_stderr "$output_stderr     argument keyword%s \
-                \"%s\" is expanded to: %s " "$optional" \
-                 "$trimmed_kword" "${new_args[*]}"
+\"%s\" is expanded to: %s " "$optional" "$trimmed_kword" "$match"
 
 	    printf_stderr "$output_stderr"
 	fi
@@ -289,29 +350,27 @@ parse_and_compgen() {
 
     # Now, starts from the first argument, narrows down the
     # subcommand format combinations.
-    for arg in "${cmd_line_so_far[@]:$j}"; do
-	local kword word
-	local subcmd_combinations_copy=
-	local iter=()
+    for arg in "${subcmd_line[@]}"; do
+	local kword narrow_1 narrow_2 narrow
 
-	kword="$(arg_to_kword $arg)"
-	if [ "$kword" = "bpi" ]; then
-	    iter=(bridge port interface)
+	if [ "$arg" == "$subcmd" ]; then
+	    kword="$subcmd"
 	else
-	    iter=($kword)
+	    local possible_kwords
+
+	    possible_kwords="$(echo "$subcmd_combinations" | awk '{print $1}' \
+                               | sort | uniq)"
+	    kword="$(arg_to_kword "$arg" "$possible_kwords")"
+	    if [ "$kword" == "NOMATCH" ]; then
+		return
+	    fi
 	fi
 
-	for word in ${iter[@]}; do
-	    local narrow_1 narrow_2 narrow
-
-	    narrow_1="$(awk -v opt=$word '$1 == opt {$1=""; print $0}' \
-                        <<< "$subcmd_combinations" | cut -c2-)"
-	    narrow_2="$(awk -v opt=*$word '$1 == opt {$1=""; print $0}' \
-                        <<< "`echo "$subcmd_combinations"`" | cut -c2-)"
-   	    narrow="`printf "%s\n%s" "$narrow_1" "$narrow_2" `"
-	    subcmd_combinations_copy="$subcmd_combinations_copy$narrow"
-	done
-	subcmd_combinations="$subcmd_combinations_copy"
+	narrow_1="$(awk -v opt=$kword '$1 == opt {$1=""; print $0}' \
+                    <<< "$subcmd_combinations" | cut -c2-)"
+	narrow_2="$(awk -v opt=*$kword '$1 == opt {$1=""; print $0}' \
+                    <<< "`echo "$subcmd_combinations"`" | cut -c2-)"
+   	subcmd_combinations="`printf "%s\n%s" "$narrow_1" "$narrow_2" `"
     done
 
     comp_wordlist="$(kword_to_args `awk '{print $1}' <<< "$subcmd_combinations" \
@@ -422,9 +481,18 @@ _ovs_appctl_complete() {
   # may take several seconds.
   extract_daemons
 
+  # Extracts bash prompt PS1.
+  extract_bash_prompt
+
   # Invokes the helper function to get all available completions.
-  _APPCTL_COMP_WORDLIST=$(ovs_appctl_comp_helper \
-      ${COMP_WORDS[@]:1:COMP_CWORD-1})
+  _APPCTL_COMP_WORDLIST="$(ovs_appctl_comp_helper \
+      ${COMP_WORDS[@]:1:COMP_CWORD-1})"
+
+  # This is a hack to prevent autocompleting when there is only one
+  # available completion.
+  if [ -z "$_PRINTF_ENABLE" ] && [ -n "$_APPCTL_COMP_WORDLIST" ]; then
+      _APPCTL_COMP_WORDLIST="$_APPCTL_COMP_WORDLIST void"
+  fi
 
   # Prints all available completions to stderr.  If there is only one matched
   # completion, do nothing.
@@ -434,11 +502,11 @@ _ovs_appctl_complete() {
       printf_stderr "\nAvailable completions:\n"
   fi
 
-  # If there is only one available completion, need to print the new bash
-  # prompt and copy the ${COMP_WORDS[@]}, .
+  # If there is no match between '$cur' and the '$_APPCTL_COMP_WORDLIST'
+  # print a bash prompt since the 'complete' will not print it.
   if [ -n "$_PRINTF_ENABLE" ] \
-      && [ "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | wc -l`" -eq "1" ]; then
-      copy_bash_prompt "${COMP_WORDS[@]}"
+      && [ -z "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur"`" ]; then
+      printf_stderr "\n$_BASH_PROMPT ${COMP_WORDS[@]}"
   fi
 
   COMPREPLY=( $(compgen -W "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort \
