@@ -509,10 +509,21 @@ _ovs_appctl_complete() {
       printf_stderr "\n$_BASH_PROMPT ${COMP_WORDS[@]}"
   fi
 
-  COMPREPLY=( $(compgen -W "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort \
-                             | uniq`" -- $cur) )
+  if [ "$1" = "debug" ] ; then
+      printf_stderr "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u`"
+  else
+      COMPREPLY=( $(compgen -W "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort \
+                                 | uniq`" -- $cur) )
+  fi
 
   return 0
 }
 
-complete -F _ovs_appctl_complete ovs-appctl
+if [ "$1" = "debug" ] ; then
+    COMP_TYPE=0
+    COMP_WORDS="${@:2}"
+    COMP_CWORD="$(expr $# - 1)"
+    _ovs_appctl_complete "debug"
+else
+    complete -F _ovs_appctl_complete ovs-appctl
+fi
