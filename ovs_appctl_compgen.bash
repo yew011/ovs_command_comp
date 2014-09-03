@@ -33,8 +33,9 @@ extract_subcmds() {
     local target=$_APPCTL_TARGET
     local subcmds=
 
-    ovs-appctl --target $target help 1>&2 2>/dev/null && \
-      subcmds="$(ovs-appctl --target $target help | cut -c3- | cut -d ' ' -f1)"
+    ovs-appctl --target $target help 2>/dev/null 1>&2 && \
+      subcmds="$(ovs-appctl --target $target help | tail -n +2 | cut -c3- \
+                 | cut -d ' ' -f1)"
 
     echo "$subcmds"
 }
@@ -65,7 +66,7 @@ find_possible_comps() {
             # If it is an optional argument, gets all completions,
             # and continues.
             if [ ! -z "`grep -- \"\[*\]\" <<< \"$arg\"`" ]; then
-                local opt_arg="`sed -n 's/^\[\(.*\)\]$/\1/p' <<< $arg`"
+                local opt_arg="`sed -en 's/^\[\(.*\)\]$/\1/p' <<< $arg`"
                 local opt_args=()
 
                 IFS='|' read -a opt_args <<< "$opt_arg"
@@ -85,7 +86,7 @@ find_possible_comps() {
 # Given the subcommand format, and the current command line input,
 # finds all possible completions.
 subcmd_find_comp_based_on_input() {
-    local format="$1"
+    local format="$(tr -s ' ' <<< "$1")"
     local cmd_line=($2)
     local mult=
     local combs=
@@ -95,14 +96,14 @@ subcmd_find_comp_based_on_input() {
     # finds all combinations by searching for '{}'.
     # there should only be one '{}', otherwise, the
     # command format should be changed to multiple commands.
-    mult="`sed -e 's/^.*{\(.*\)}.*$/ \1/' <<< "$format" | tr '|' '\n' | cut -c1-`"
+    mult="$(sed -e 's/^.*{\(.*\)}.*$/ \1/' <<< "$format" | tr '|' '\n' | cut -c1-)"
     while read line; do
         local tmp=
 
-        tmp="`sed -e "s/{\(.*\)}/$line/" <<< "$format"`"
+        tmp="$(sed -e "s@{\(.*\)}@$line@" <<< "$format")"
         combs="$combs@$tmp"
     done <<< "$mult"
-    combs="`tr '@' '\n' <<< "$combs"`"
+    combs="$(tr '@' '\n' <<< "$combs")"
 
     # Now, starts from the first argument, narrows down the
     # subcommand format combinations.
@@ -115,12 +116,12 @@ subcmd_find_comp_based_on_input() {
         kword="$(arg_to_kwords "$arg" "$possible_comps")"
         # Trims the 'combs', keeps context only after 'kword'.
         if [ -n "$combs"]; then
-            combs="`sed -ne "s@^.*\[\?$kword|\?[a-z_]*\]\? @@p"`"
+            combs="$(sed -ne "s@^.*\[\?$kword|\?[a-z_]*\]\? @@p")"
         fi
     done
     comps="$(find_possible_comps "$combs")"
 
-    echo "`kwords_to_args "$comps"`"
+    echo "$(kwords_to_args "$comps")"
 }
 
 
@@ -175,7 +176,7 @@ complete_port () {
         --no-headings \
         --columns=name \
         list Port)
-    ports=$(printf "$all_ports" | sort | tr -d '" ' | uniq -u)
+    ports=$(printf "$all_ports" | sort | tr -d '"' | uniq -u)
     result=$(grep -- "^$1" <<< "$ports")
 
     echo "${result}"
@@ -233,7 +234,6 @@ arg_to_kwords() {
             *)
                 if [ "$arg" = "$kword" ]; then
                     match="$kword"
-                    ;;
                 else
                     non_parsables+=("$kword")
                     continue
@@ -334,15 +334,15 @@ parse_and_compgen() {
     local comp_wordlist=
 
     # Extracts the subcommand format.
-    subcmd_format="$(ovs-appctl --target $target help | cut -c3- \
-                     awk -v opt=$subcmd '$1 == opt {print $0} )"
+    subcmd_format="$(ovs-appctl --target $target help | tail -n +2 | cut -c3- \
+                     | awk -v opt=$subcmd '$1 == opt {print $0}' )"
 
     # Prints subcommand format.
-    printf_stderr "`printf "\nCommand format:\n%s" "$subcmd_format"`"
+    printf_stderr "$(printf "\nCommand format:\n%s" "$subcmd_format")"
 
     # Finds the possible completions based on input argument.
-    comp_wordlist="$(subcmd_find_comp_based_on_input \
-                     "$subcmd_format" "${subcmd_line[@]}")"
+    comp_wordlist="$(subcmd_find_comp_based_on_input "$subcmd_format" \
+                     "${subcmd_line[@]}")"
 
     echo "$comp_wordlist"
 }
@@ -440,7 +440,7 @@ _ovs_appctl_complete() {
 
   # Do not print anything at first [TAB] execution.
   if [ "$COMP_TYPE" -eq "9" ]; then
-      _PRINTF_ENABLE=""
+      _PRINTF_ENABLE=
   else
       _PRINTF_ENABLE="enabled"
   fi
@@ -461,23 +461,23 @@ _ovs_appctl_complete() {
   # Prints all available completions to stderr.  If there is only one matched
   # completion, do nothing.
   if [ -n "$_PRINTF_ENABLE" ] \
-      && [ -n "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | \
-                grep -- "^$cur"`" ]; then
+      && [ -n "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | \
+                grep -- "^$cur")" ]; then
       printf_stderr "\nAvailable completions:\n"
   fi
 
   # If there is no match between '$cur' and the '$_APPCTL_COMP_WORDLIST'
   # print a bash prompt since the 'complete' will not print it.
   if [ -n "$_PRINTF_ENABLE" ] \
-      && [ -z "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur"`" ]; then
+      && [ -z "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur")" ]; then
       printf_stderr "\n$_BASH_PROMPT ${COMP_WORDS[@]}"
   fi
 
   if [ "$1" = "debug" ] ; then
-      printf_stderr "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u`"
+      printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u)"
   else
-      COMPREPLY=( $(compgen -W "`echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort \
-                                 | uniq`" -- $cur) )
+      COMPREPLY=( $(compgen -W "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' \
+                                 | sort -u)" -- $cur) )
   fi
 
   return 0
