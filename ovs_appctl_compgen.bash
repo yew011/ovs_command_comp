@@ -66,7 +66,7 @@ find_possible_comps() {
             # If it is an optional argument, gets all completions,
             # and continues.
             if [ ! -z "`grep -- \"\[*\]\" <<< \"$arg\"`" ]; then
-                local opt_arg="`sed -en 's/^\[\(.*\)\]$/\1/p' <<< $arg`"
+                local opt_arg="$(sed -e 's/^\[\(.*\)\]$/\1/' <<< "$arg")"
                 local opt_args=()
 
                 IFS='|' read -a opt_args <<< "$opt_arg"
@@ -86,7 +86,7 @@ find_possible_comps() {
 # Given the subcommand format, and the current command line input,
 # finds all possible completions.
 subcmd_find_comp_based_on_input() {
-    local format="$(tr -s ' ' <<< "$1")"
+    local format="$1"
     local cmd_line=($2)
     local mult=
     local combs=
@@ -115,8 +115,8 @@ subcmd_find_comp_based_on_input() {
         # Finds the kword.
         kword="$(arg_to_kwords "$arg" "$possible_comps")"
         # Trims the 'combs', keeps context only after 'kword'.
-        if [ -n "$combs"]; then
-            combs="$(sed -ne "s@^.*\[\?$kword|\?[a-z_]*\]\? @@p")"
+        if [ -n "$combs" ]; then
+            combs="$(sed -ne "s@^.*\[\?$kword|\?[a-z_]*\]\? @@p" <<< "$combs")"
         fi
     done
     comps="$(find_possible_comps "$combs")"
@@ -147,8 +147,8 @@ printf_stderr() {
 # http://stackoverflow.com/questions/10060500/bash-how-to-evaluate-ps1-ps2
 extract_bash_prompt() {
     if [ -z "$_BASH_PROMPT" ]; then
-    _BASH_PROMPT="$(echo want_bash_prompt_PS1 | bash -i 2>&1 \
-        | grep want_bash_prompt_PS1| head -1 | sed 's/ want_bash_prompt_PS1//g')"
+        _BASH_PROMPT="$(echo want_bash_prompt_PS1 | bash -i 2>&1 \
+                        | tail -1 | sed 's/ exit//g')"
     fi
 }
 
@@ -210,6 +210,7 @@ complete_dp () {
 # Returns empty string if could not map the arg to any keyword.
 arg_to_kwords() {
     local arg="$1"
+    local possible_kwords=($2)
     local non_parsables=()
     local match=
     local kword
@@ -335,7 +336,7 @@ parse_and_compgen() {
 
     # Extracts the subcommand format.
     subcmd_format="$(ovs-appctl --target $target help | tail -n +2 | cut -c3- \
-                     | awk -v opt=$subcmd '$1 == opt {print $0}' )"
+                     | awk -v opt=$subcmd '$1 == opt {print $0}' | tr -s ' ' )"
 
     # Prints subcommand format.
     printf_stderr "$(printf "\nCommand format:\n%s" "$subcmd_format")"
