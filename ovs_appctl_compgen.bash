@@ -121,7 +121,7 @@ subcmd_find_comp_based_on_input() {
         kword="$(arg_to_kwords "$arg" "$possible_comps")"
         # Trims the 'combs', keeps context only after 'kword'.
         if [ -n "$combs" ]; then
-            combs="$(sed -ne "s@^.*\[\?$kword|\?[a-z_]*\]\? @@p" <<< "$combs")"
+            combs="$(sed -n "s@^.*\[\?$kword|\?[a-z_]*\]\? @@p" <<< "$combs")"
         fi
     done
     comps="$(find_possible_comps "$combs")"
