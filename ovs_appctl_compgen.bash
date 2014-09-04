@@ -166,48 +166,64 @@ extract_bash_prompt() {
 #
 # All completion functions.
 complete_bridge () {
-    local result
+    local result error
 
-    result=$(ovs-vsctl list-br | grep -- "^$1")
+    result=$(ovs-vsctl list-br | grep -- "^$1") || error="TRUE"
 
-    echo  "${result}"
+    if [ -z "$error" ]; then
+        echo  "${result}"
+    else
+        echo "NO_MATCH"
+    fi
 }
 
 complete_port () {
-    local ports result
+    local ports result error
     local all_ports
 
     all_ports=$(ovs-vsctl --format=table \
         --no-headings \
         --columns=name \
-        list Port)
+        list Port) || error="TRUE"
     ports=$(printf "$all_ports" | sort | tr -d '"' | uniq -u)
     result=$(grep -- "^$1" <<< "$ports")
 
-    echo "${result}"
+    if [ -z "$error" ]; then
+        echo  "${result}"
+    else
+        echo "NO_MATCH"
+    fi
 }
 
 complete_iface () {
-    local bridge bridges result
+    local bridge bridges result error
 
     bridges=$(ovs-vsctl list-br)
     for bridge in $bridges; do
         local ifaces
 
-        ifaces=$(ovs-vsctl list-ifaces "${bridge}")
+        ifaces=$(ovs-vsctl list-ifaces "${bridge}") || error="TRUE"
         result="${result} ${ifaces}"
     done
 
-    echo "${result}"
+    if [ -z "$error" ]; then
+        echo  "${result}"
+    else
+        echo "NO_MATCH"
+    fi
 }
 
 complete_dp () {
-    local dps result
+    local dps result error
 
-    dps=$(ovs-dpctl dump-dps | cut -d '@' -f2)
+    dps=$(ovs-dpctl dump-dps | cut -d '@' -f2) || error="TRUE"
     result=$(grep -- "^$1" <<< "$dps")
 
-    echo "$result"
+    if [ -z "$error" ]; then
+        echo  "${result}"
+    else
+        echo "NO_MATCH"
+    fi
 }
 
 # Converts the argument (e.g. bridge/port/interface name) to
