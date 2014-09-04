@@ -42,7 +42,7 @@ extract_subcmds() {
 
 # Extracts all options of ovs-appctl.
 extract_options() {
-    echo "`ovs-appctl --option`"
+    echo "$(ovs-appctl --option)"
 }
 
 
@@ -65,7 +65,7 @@ find_possible_comps() {
         for arg in $line; do
             # If it is an optional argument, gets all completions,
             # and continues.
-            if [ ! -z "`grep -- \"\[*\]\" <<< \"$arg\"`" ]; then
+            if [ ! -z "$(grep -- "\[*\]" <<< "$arg")" ]; then
                 local opt_arg="$(sed -e 's/^\[\(.*\)\]$/\1/' <<< "$arg")"
                 local opt_args=()
 
