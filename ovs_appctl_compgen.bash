@@ -20,8 +20,6 @@ _APPCTL_COMP_WORDLIST=
 # Possible targets.
 _POSSIBLE_TARGETS="ovs-vswitchd ovsdb-server ovs-ofctl"
 
-
-
 # Command Extraction
 # ==================
 #
@@ -74,7 +72,10 @@ find_possible_comps() {
             # If it is a compulsory argument, adds it to the comps
             # and break, since all following args are for next stage.
             else
-                comps="$arg $comps"
+                local args=()
+
+                IFS='|' read -a args <<< "$arg"
+                comps="${args[@]} $comps"
                 break;
             fi
         done
@@ -96,14 +97,18 @@ subcmd_find_comp_based_on_input() {
     # finds all combinations by searching for '{}'.
     # there should only be one '{}', otherwise, the
     # command format should be changed to multiple commands.
-    mult="$(sed -e 's/^.*{\(.*\)}.*$/ \1/' <<< "$format" | tr '|' '\n' | cut -c1-)"
-    while read line; do
-        local tmp=
+    mult="$(sed -n 's/^.*{\(.*\)}.*$/ \1/p' <<< "$format" | tr '|' '\n' | cut -c1-)"
+    if [ -n "$mult" ]; then
+        while read line; do
+            local tmp=
 
-        tmp="$(sed -e "s@{\(.*\)}@$line@" <<< "$format")"
-        combs="$combs@$tmp"
-    done <<< "$mult"
-    combs="$(tr '@' '\n' <<< "$combs")"
+            tmp="$(sed -e "s@{\(.*\)}@$line@" <<< "$format")"
+            combs="$combs@$tmp"
+        done <<< "$mult"
+        combs="$(tr '@' '\n' <<< "$combs")"
+    else
+        combs="$format"
+    fi
 
     # Now, starts from the first argument, narrows down the
     # subcommand format combinations.
