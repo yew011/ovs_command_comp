@@ -486,7 +486,7 @@ _ovs_appctl_complete() {
 
 if [ "$1" = "debug" ] ; then
     COMP_TYPE=0
-    COMP_WORDS="${@:2}"
+    COMP_WORDS=(${@:2})
     COMP_CWORD="$(expr $# - 1)"
     _ovs_appctl_complete "debug"
 else
