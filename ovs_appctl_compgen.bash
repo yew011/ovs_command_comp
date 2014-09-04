@@ -227,7 +227,7 @@ arg_to_kwords() {
                 match="$(complete_iface "$arg")"
                 ;;
             dp_name|dp)
-                atch="$(complete_dp "$arg")"
+                match="$(complete_dp "$arg")"
                 ;;
             remote)
                 match="$(complete_remote "$arg")"
