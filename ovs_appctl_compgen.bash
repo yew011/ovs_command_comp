@@ -471,6 +471,8 @@ _ovs_appctl_complete() {
   extract_bash_prompt
 
   # Invokes the helper function to get all available completions.
+  # Always not input the 'COMP_WORD' at 'COMP_CWORD', since it is
+  # the one to be completed.
   _APPCTL_COMP_WORDLIST="$(ovs_appctl_comp_helper \
       ${COMP_WORDS[@]:1:COMP_CWORD-1})"
 
@@ -497,6 +499,7 @@ _ovs_appctl_complete() {
 
   if [ "$1" = "debug" ] ; then
       printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u)"
+      printf_stderr ""
   else
       COMPREPLY=( $(compgen -W "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' \
                                  | sort -u)" -- $cur) )
