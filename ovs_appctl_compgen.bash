@@ -320,6 +320,7 @@ kwords_to_args() {
                 match=($trimmed_kword)
                 ;;
         esac
+        match=$(echo "$match" | tr '\n' ' ')
         args+=( $match )
         if [ -n "$_PRINTF_ENABLE" ]; then
             local output_stderr=
