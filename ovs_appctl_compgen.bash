@@ -468,7 +468,9 @@ _ovs_appctl_complete() {
   fi
 
   # Extracts bash prompt PS1.
-  extract_bash_prompt
+  if [ "$1" != "debug" ]; then
+      extract_bash_prompt
+  fi
 
   # Invokes the helper function to get all available completions.
   # Always not input the 'COMP_WORD' at 'COMP_CWORD', since it is
@@ -493,13 +495,17 @@ _ovs_appctl_complete() {
   # If there is no match between '$cur' and the '$_APPCTL_COMP_WORDLIST'
   # print a bash prompt since the 'complete' will not print it.
   if [ -n "$_PRINTF_ENABLE" ] \
-      && [ -z "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur")" ]; then
+      && [ -z "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur")" ] \
+      && [ "$1" != "debug" ] ; then
       printf_stderr "\n$_BASH_PROMPT ${COMP_WORDS[@]}"
   fi
 
   if [ "$1" = "debug" ] ; then
-      printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u)"
-      printf_stderr ""
+      if [ -n "$cur" ]; then
+          printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep "$cur")\n"
+      else
+          printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep "$cur")\n"
+      fi
   else
       COMPREPLY=( $(compgen -W "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' \
                                  | sort -u)" -- $cur) )
@@ -509,9 +515,20 @@ _ovs_appctl_complete() {
 }
 
 if [ "$1" = "debug" ] ; then
+    shift
     COMP_TYPE=0
-    COMP_WORDS=(${@:2})
+    COMP_WORDS=($@)
     COMP_CWORD="$(expr $# - 1)"
+
+    # If the last argument is TAB, it means that the previous
+    # argument is already complete and script should complete
+    # next argument which as not being input yet.  This is a
+    # hack since compgen will break the input whitespace even
+    # though there is no input after it but bash cannot.
+    if [ "${COMP_WORDS[-1]}" = "TAB" ]; then
+        COMP_WORDS[${#COMP_WORDS[@]}-1]=""
+    fi
+
     _ovs_appctl_complete "debug"
 else
     complete -F _ovs_appctl_complete ovs-appctl
