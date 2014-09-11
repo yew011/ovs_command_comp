@@ -497,9 +497,9 @@ _ovs_appctl_complete() {
 
   if [ "$1" = "debug" ] ; then
       if [ -n "$cur" ]; then
-          printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep "$cur")\n"
+          printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep -- "$cur")\n"
       else
-          printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep "$cur")\n"
+          printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep -- "$cur")\n"
       fi
   else
       COMPREPLY=( $(compgen -W "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' \
