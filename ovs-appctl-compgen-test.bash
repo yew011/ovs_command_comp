@@ -29,7 +29,7 @@ get_command_format() {
 get_argument_expansion() {
     local input="$@"
 
-    echo "$(grep -- "argument keyword .* is expanded to" | sed -e 's/^[ \t]*//')"
+    echo "$(grep -- "argument keyword .* is expanded to" <<< "$input" | sed -e 's/^[ \t]*//')"
 }
 
 get_available_completions() {
@@ -80,7 +80,8 @@ $(ovs-appctl $target_line help | tail -n +2 | cut -c3- | cut -d ' ' -f1)"
 #
 # Test preparation.
 #
-ovs-vsctl --may-exist add-br br0
+ovs-vsctl add-br br0
+ovs-vsctl add-port br0 p1
 
 
 #
@@ -174,10 +175,6 @@ for i in $TMP; do
     if [ "$tmp" = "$EXPECT" ]; then
         TEST_RESULT=ok
     else
-        echo "$COMP_OUTPUT"
-        echo "$tmp"
-        echo "$EXPECT"
-        echo "failed at subcommand: $i"
         TEST_RESULT=fail
         break
     fi
@@ -185,8 +182,270 @@ done
 
 print_result "check all subcommand format" "$TEST_RESULT"
 
+
 # complex completion check - bfd/set-forwarding
+# bfd/set-forwarding [interface] normal|false|true
+# test expansion of 'interface'
+
+reset_globals
+
+for i in loop_once; do
+    # check the top level completion.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl bfd/set-forwarding TAB 2>&1)"
+    TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
+    EXPECT="argument keyword \"normal\" is expanded to: normal
+argument keyword \"false\" is expanded to: false
+argument keyword \"true\" is expanded to: true
+argument keyword \"interface\" is expanded to:  p1"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # check the available completions.
+    TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
+    EXPECT="false normal p1 true"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # set argument to 'true', there should be no more completions.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl bfd/set-forwarding true TAB 2>&1)"
+    TMP="$(sed -e '/./,$!d' <<< "$COMP_OUTPUT")"
+    EXPECT="Command format:
+bfd/set-forwarding [interface] normal|false|true"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # set argument to 'p1', there should still be the completion for booleans.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl bfd/set-forwarding p1 TAB 2>&1)"
+    TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
+    EXPECT="argument keyword \"normal\" is expanded to: normal
+argument keyword \"false\" is expanded to: false
+argument keyword \"true\" is expanded to: true"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # check the available completions.
+    TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
+    EXPECT="false normal true"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # set argument to 'p1 false', there should still no more completions.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl bfd/set-forwarding p1 false TAB 2>&1)"
+    TMP="$(sed -e '/./,$!d' <<< "$COMP_OUTPUT")"
+    EXPECT="Command format:
+bfd/set-forwarding [interface] normal|false|true"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    TEST_RESULT=ok
+done
+
+print_result "complex completion check - bfd/set-forwarding" "$TEST_RESULT"
+
+
 # complex completion check - lacp/show
+# lacp/show [port]
+# test expansion on 'port'
+
+reset_globals
+
+for i in loop_once; do
+    # check the top level completion.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl lacp/show TAB 2>&1)"
+    TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
+    EXPECT="argument keyword \"port\" is expanded to: br0 p1"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # check the available completions.
+    TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
+    EXPECT="br0 p1"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # set argument to 'p1', there should be no more completions.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl lacp/show p1 TAB 2>&1)"
+    TMP="$(sed -e '/./,$!d' <<< "$COMP_OUTPUT")"
+    EXPECT="Command format:
+lacp/show [port]"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    TEST_RESULT=ok
+done
+
+print_result "complex completion check - lacp/show" "$TEST_RESULT"
+
+
 # complex completion check - ofproto/trace
+# ofproto/trace {[dp_name] odp_flow | bridge br_flow} [-generate|packet]
+# test expansion on 'dp|dp_name' and 'bridge'
+
+for i in loop_once; do
+    # check the top level completion.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace TAB 2>&1)"
+    TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
+    EXPECT="argument keyword \"bridge\" is expanded to: br0
+argument keyword \"odp_flow\" is expanded to: odp_flow
+argument keyword \"dp_name\" is expanded to: ovs-system"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # check the available completions.
+    TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
+    EXPECT="br0 odp_flow ovs-system"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # set argument to 'ovs-system', should go to the dp-name path.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace ovs-system TAB 2>&1)"
+    TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
+    EXPECT="argument keyword \"odp_flow\" is expanded to: odp_flow"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # check the available completions.
+    TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
+    EXPECT="odp_flow"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # set odp_flow to some random string, should go to the next level.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace ovs-system "in_port(123),mac(),ip,tcp" TAB 2>&1)"
+    TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
+    EXPECT="argument keyword \"-generate\" is expanded to: -generate
+argument keyword \"packet\" is expanded to: packet"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # check the available completions.
+    TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
+    EXPECT="-generate packet"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # set packet to some random string, there should be no more completions.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace ovs-system "in_port(123),mac(),ip,tcp" "ABSJDFLSDJFOIWEQR" TAB 2>&1)"
+    TMP="$(sed -e '/./,$!d' <<< "$COMP_OUTPUT")"
+    EXPECT="Command format:
+ofproto/trace {[dp_name] odp_flow | bridge br_flow} [-generate|packet]"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # set argument to 'br0', should go to the bridge path.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace br0 TAB 2>&1)"
+    TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
+    EXPECT="argument keyword \"br_flow\" is expanded to: br_flow"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # check the available completions.
+    TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
+    EXPECT="br_flow"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # set argument to some random string, should go to the odp_flow path.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace "in_port(123),mac(),ip,tcp" TAB 2>&1)"
+    TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
+    EXPECT="argument keyword \"-generate\" is expanded to: -generate
+argument keyword \"packet\" is expanded to: packet"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # check the available completions.
+    TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
+    EXPECT="-generate packet"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    TEST_RESULT=ok
+done
+
+print_result "complex completion check - ofproto/trace" "$TEST_RESULT"
+
+
 # complex completion check - vlog/set
-# netgative test => no vswitchd, no ovsdb-server, no ovs-ofctl
+# vlog/set {spec | PATTERN:facility:pattern}
+# test non expandable arguments
+for i in loop_once; do
+    # check the top level completion.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl vlog/set TAB 2>&1)"
+    TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
+    EXPECT="argument keyword \"PATTERN:facility:pattern\" is expanded to: PATTERN:facility:pattern
+argument keyword \"spec\" is expanded to: spec"
+
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # check the available completions.
+    TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
+    EXPECT="PATTERN:facility:pattern spec"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    # set argument to random 'abcd', there should be no more completions.
+    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl vlog/set abcd TAB 2>&1)"
+    TMP="$(sed -e '/./,$!d' <<< "$COMP_OUTPUT")"
+    EXPECT="Command format:
+vlog/set {spec | PATTERN:facility:pattern}"
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    TEST_RESULT=ok
+done
+
+print_result "complex completion check - vlog/set" "$TEST_RESULT"
+
+
+# negative test => delete the configuration
+
+# negative test => incorrect input
+
+# negative test => no vswitchd, no ovsdb-server, no ovs-ofctl
