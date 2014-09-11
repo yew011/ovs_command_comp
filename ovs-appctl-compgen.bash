@@ -172,8 +172,6 @@ complete_bridge () {
 
     if [ -z "$error" ]; then
         echo  "${result}"
-    else
-        echo "NO_MATCH"
     fi
 }
 
@@ -190,8 +188,6 @@ complete_port () {
 
     if [ -z "$error" ]; then
         echo  "${result}"
-    else
-        echo "NO_MATCH"
     fi
 }
 
@@ -208,8 +204,6 @@ complete_iface () {
 
     if [ -z "$error" ]; then
         echo  "${result}"
-    else
-        echo "NO_MATCH"
     fi
 }
 
@@ -221,12 +215,10 @@ complete_dp () {
 
     if [ -z "$error" ]; then
         echo  "${result}"
-    else
-        echo "NO_MATCH"
     fi
 }
 
-# Converts the argument (e.g. bridge/port/interface name) to
+# Converts the argument (e.g. bridge/port/interface/dp name) to
 # the corresponding keywords.
 # Returns empty string if could not map the arg to any keyword.
 arg_to_kwords() {
@@ -281,19 +273,9 @@ kwords_to_args() {
     local kword
 
     for kword in ${possible_kwords[@]}; do
-        local trimmed_kword=
-        local optional=
         local match=
 
-        # Cuts the first character is the argument is optional.
-        if [ "${kword:0:1}" == "*" ]; then
-            optional=" (optional)"
-            trimmed_kword="${kword:1}"
-        else
-            trimmed_kword="${kword}"
-        fi
-
-        case "${trimmed_kword}" in
+        case "${kword}" in
             bridge)
                 match="$(complete_bridge "")"
                 ;;
@@ -308,10 +290,10 @@ kwords_to_args() {
                 ;;
             -*)
                 # Treats option as kword as well.
-                match="$trimmed_kword"
+                match="$kword"
                 ;;
             *)
-                match=($trimmed_kword)
+                match=($kword)
                 ;;
         esac
         match=$(echo "$match" | tr '\n' ' ')
@@ -323,8 +305,8 @@ kwords_to_args() {
                 printf_expand_once="once"
                 printf -v output_stderr "\nArgument expansion:\n"
             fi
-            printf -v output_stderr "$output_stderr     argument keyword%s \
-\"%s\" is expanded to: %s " "$optional" "$trimmed_kword" "$match"
+            printf -v output_stderr "$output_stderr     argument keyword \
+\"%s\" is expanded to: %s " "$kword" "$match"
 
             printf_stderr "$output_stderr"
         fi
