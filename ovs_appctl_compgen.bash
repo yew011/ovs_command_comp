@@ -250,9 +250,6 @@ arg_to_kwords() {
             dp_name|dp)
                 match="$(complete_dp "$arg")"
                 ;;
-            remote)
-                match="$(complete_remote "$arg")"
-                ;;
             *)
                 if [ "$arg" = "$kword" ]; then
                     match="$kword"
@@ -308,9 +305,6 @@ kwords_to_args() {
                 ;;
             dp_name|dp)
                 match="$(complete_dp "")"
-                ;;
-            remote)
-                match="$(complete_remote "")"
                 ;;
             -*)
                 # Treats option as kword as well.
