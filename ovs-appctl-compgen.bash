@@ -216,7 +216,7 @@ complete_iface () {
 complete_dp () {
     local dps result error
 
-    dps=$(ovs-dpctl dump-dps | cut -d '@' -f2) || error="TRUE"
+    dps=$(ovs-appctl dpctl/dump-dps | cut -d '@' -f2) || error="TRUE"
     result=$(grep -- "^$1" <<< "$dps")
 
     if [ -z "$error" ]; then
