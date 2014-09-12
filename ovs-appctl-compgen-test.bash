@@ -67,7 +67,7 @@ ovs_apptcl_TAB() {
     fi
     comp_output="$(bash ovs-appctl-compgen.bash debug ovs-appctl $target_line TAB 2>&1)"
     tmp="$(get_available_completions "$comp_output")"
-    expect="$(ovs-appctl --option | sort)
+    expect="$(ovs-appctl --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)
 $(ovs-appctl $target_line help | tail -n +2 | cut -c3- | cut -d ' ' -f1)"
 
     if [ "$tmp" = "$expect" ]; then

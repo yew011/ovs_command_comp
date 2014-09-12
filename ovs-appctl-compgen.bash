@@ -40,7 +40,7 @@ extract_subcmds() {
 
 # Extracts all options of ovs-appctl.
 extract_options() {
-    echo "$(ovs-appctl --option)"
+    echo "$(ovs-appctl --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)"
 }
 
 
