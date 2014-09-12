@@ -2,10 +2,11 @@
 #
 # Tests for the ovs-appctl-compgen.bash
 #
-# Please run this script inside ovs-sandbox.
+# Please run this with ovs-appctl-compgen.bash script inside
+# ovs-sandbox, under the same directory.
+#
 # For information about running the ovs-sandbox, please refer to
 # the tutorial directory.
-#
 #
 #
 #
@@ -88,7 +89,7 @@ ovs-vsctl add-port br0 p1
 #
 cat <<EOF
 
-## ------------------------------ ##                                                                                                                                   [1530/1928]
+## ------------------------------ ##
 ## ovs-appctl-compgen unit tests. ##
 ## ------------------------------ ##
 
