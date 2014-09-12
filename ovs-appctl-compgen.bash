@@ -30,12 +30,14 @@ _POSSIBLE_TARGETS="ovs-vswitchd ovsdb-server ovs-ofctl"
 extract_subcmds() {
     local target=$_APPCTL_TARGET
     local subcmds=
+    local error
 
-    ovs-appctl --target $target help 2>/dev/null 1>&2 && \
-      subcmds="$(ovs-appctl --target $target help | tail -n +2 | cut -c3- \
-                 | cut -d ' ' -f1)"
+    subcmds="$(ovs-appctl --target $target help 2>/dev/null | tail -n +2 | cut -c3- \
+                 | cut -d ' ' -f1)" || error="TRUE"
 
-    echo "$subcmds"
+    if [ -z "$error" ]; then
+        echo "$subcmds"
+    fi
 }
 
 # Extracts all options of ovs-appctl.
@@ -168,7 +170,7 @@ extract_bash_prompt() {
 complete_bridge () {
     local result error
 
-    result=$(ovs-vsctl list-br | grep -- "^$1") || error="TRUE"
+    result=$(ovs-vsctl list-br 2>/dev/null | grep -- "^$1") || error="TRUE"
 
     if [ -z "$error" ]; then
         echo  "${result}"
@@ -182,7 +184,7 @@ complete_port () {
     all_ports=$(ovs-vsctl --format=table \
         --no-headings \
         --columns=name \
-        list Port) || error="TRUE"
+        list Port 2>/dev/null) || error="TRUE"
     ports=$(printf "$all_ports" | sort | tr -d '"' | uniq -u)
     result=$(grep -- "^$1" <<< "$ports")
 
@@ -194,11 +196,11 @@ complete_port () {
 complete_iface () {
     local bridge bridges result error
 
-    bridges=$(ovs-vsctl list-br)
+    bridges=$(ovs-vsctl list-br 2>/dev/null)
     for bridge in $bridges; do
         local ifaces
 
-        ifaces=$(ovs-vsctl list-ifaces "${bridge}") || error="TRUE"
+        ifaces=$(ovs-vsctl list-ifaces "${bridge}" 2>/dev/null) || error="TRUE"
         result="${result} ${ifaces}"
     done
 
@@ -210,7 +212,7 @@ complete_iface () {
 complete_dp () {
     local dps result error
 
-    dps=$(ovs-appctl dpctl/dump-dps | cut -d '@' -f2) || error="TRUE"
+    dps=$(ovs-appctl dpctl/dump-dps 2>/dev/null | cut -d '@' -f2) || error="TRUE"
     result=$(grep -- "^$1" <<< "$dps")
 
     if [ -z "$error" ]; then
@@ -333,7 +335,7 @@ parse_and_compgen() {
     local comp_wordlist=
 
     # Extracts the subcommand format.
-    subcmd_format="$(ovs-appctl --target $target help | tail -n +2 | cut -c3- \
+    subcmd_format="$(ovs-appctl --target $target help 2>/dev/null | tail -n +2 | cut -c3- \
                      | awk -v opt=$subcmd '$1 == opt {print $0}' | tr -s ' ' )"
 
     # Prints subcommand format.
