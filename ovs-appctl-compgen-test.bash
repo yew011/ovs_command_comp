@@ -566,7 +566,6 @@ for i in ${TEST_TARGETS[@]}; do
         TMP="$(get_available_completions "$COMP_OUTPUT")"
         EXPECT="$(ovs-appctl --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)"
         if [ "$TMP" != "$EXPECT" ]; then
-            echo HERE
             TEST_RESULT=fail
             break
         fi

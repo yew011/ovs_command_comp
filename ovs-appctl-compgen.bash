@@ -26,7 +26,7 @@ _POSSIBLE_TARGETS="ovs-vswitchd ovsdb-server ovs-ofctl"
 #
 #
 # Extracts all subcommands of target.
-# If cannot read pidfile, returns nothing.
+# If cannot find target, returns nothing.
 extract_subcmds() {
     local target=$_APPCTL_TARGET
     local subcmds=
@@ -40,7 +40,7 @@ extract_subcmds() {
     fi
 }
 
-# Extracts all options of ovs-appctl.
+# Extracts all long options of ovs-appctl.
 extract_options() {
     echo "$(ovs-appctl --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)"
 }
@@ -52,8 +52,8 @@ extract_options() {
 #
 #
 #
-# Given the subcommand formats at current completion level, finds
-# all possible completions.
+# Given the subcommand formats, finds all possible completions
+# at current completion level.
 find_possible_comps() {
     local combs="$@"
     local comps=
@@ -147,7 +147,7 @@ printf_stderr() {
     fi
 }
 
-# Extracts the bash prompt PS1, output it with the input argument
+# Extracts the bash prompt PS1, outputs it with the input argument
 # via 'printf_stderr'.
 #
 # Idea inspired by:
@@ -196,7 +196,7 @@ complete_port () {
 complete_iface () {
     local bridge bridges result error
 
-    bridges=$(ovs-vsctl list-br 2>/dev/null)
+    bridges=$(ovs-vsctl list-br 2>/dev/null) || error="TRUE"
     for bridge in $bridges; do
         local ifaces
 
@@ -261,7 +261,7 @@ arg_to_kwords() {
     done
 
     # If there is only one non-parsable kword,
-    # just assume the user input it.
+    # just assumes the user input it.
     if [ "${#non_parsables[@]}" -eq "1" ]; then
         echo "$non_parsables"
         return
@@ -326,7 +326,7 @@ kwords_to_args() {
 #
 #
 # This function takes the current command line arguments as input,
-# find the command format and returns the possible completions.
+# finds the command format and returns the possible completions.
 parse_and_compgen() {
     local subcmd_line=($@)
     local subcmd=${subcmd_line[0]}
@@ -410,10 +410,10 @@ ovs_appctl_comp_helper() {
     done
 
     if [ -z "$comp_wordlist" ]; then
-        # If the subcommand is not found, provides all subcmds.
-        # Else parses the current arguments and finds the possible completions.
+        # If the subcommand is not found, provides all subcmds and options.
         if [ -z "$appctl_subcmd" ]; then
             comp_wordlist="$(extract_subcmds) $(extract_options)"
+        # Else parses the current arguments and finds the possible completions.
         else
             # $j stores the index of the subcmd in cmd_line_so_far.
             comp_wordlist="$(parse_and_compgen "${cmd_line_so_far[@]:$j}")"
@@ -472,7 +472,7 @@ _ovs_appctl_complete() {
   fi
 
   # If there is no match between '$cur' and the '$_APPCTL_COMP_WORDLIST'
-  # print a bash prompt since the 'complete' will not print it.
+  # prints a bash prompt since the 'complete' will not print it.
   if [ -n "$_PRINTF_ENABLE" ] \
       && [ -z "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur")" ] \
       && [ "$1" != "debug" ] ; then
@@ -493,6 +493,7 @@ _ovs_appctl_complete() {
   return 0
 }
 
+# Debug mode.
 if [ "$1" = "debug" ] ; then
     shift
     COMP_TYPE=0
@@ -501,14 +502,15 @@ if [ "$1" = "debug" ] ; then
 
     # If the last argument is TAB, it means that the previous
     # argument is already complete and script should complete
-    # next argument which as not being input yet.  This is a
-    # hack since compgen will break the input whitespace even
+    # next argument which is not input yet.  This is a hack
+    # since compgen will break the input whitespace even
     # though there is no input after it but bash cannot.
     if [ "${COMP_WORDS[-1]}" = "TAB" ]; then
         COMP_WORDS[${#COMP_WORDS[@]}-1]=""
     fi
 
     _ovs_appctl_complete "debug"
+# Normal compgen mode.
 else
     complete -F _ovs_appctl_complete ovs-appctl
 fi
