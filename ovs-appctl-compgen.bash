@@ -150,13 +150,22 @@ printf_stderr() {
 # Extracts the bash prompt PS1, outputs it with the input argument
 # via 'printf_stderr'.
 #
-# Idea inspired by:
+# Original idea inspired by:
 # http://stackoverflow.com/questions/10060500/bash-how-to-evaluate-ps1-ps2
+#
+# The code below is taken from Peter Amidon.  His change makes it more
+# robust.
 extract_bash_prompt() {
-    if [ -z "$_BASH_PROMPT" ]; then
-        _BASH_PROMPT="$(echo want_bash_prompt_PS1 | bash -i 2>&1 \
-                        | tail -1 | sed 's/ exit//g')"
-    fi
+    local myPS1, vars, var, funcs, func, v
+
+    myPS1="$(sed 's/Begin prompt/\\Begin prompt/; s/End prompt/\\End prompt/' <<< "$PS1")"
+    vars="$(env | cut -d'=' -f1)"
+    for var in $vars; do export $var; done
+    funcs="$(declare -F | cut -d' ' -f3)"
+    for func in $funcs; do export -f $func; done
+    v="$(bash --norc --noprofile -i 2>&1 <<< $'PS1=\"'"$myPS1"$'\" \n# Begin prompt\n# End prompt')"
+    v="${v##*# Begin prompt}"
+    _BASH_PROMPT="$(tail -n +2 <<< "${v%# End prompt*}" | sed 's/\\Begin prompt/Begin prompt/; s/\\End prompt/End prompt/')"
 }
 
 
@@ -475,16 +484,12 @@ _ovs_appctl_complete() {
   # prints a bash prompt since the 'complete' will not print it.
   if [ -n "$_PRINTF_ENABLE" ] \
       && [ -z "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur")" ] \
-      && [ "$1" != "debug" ] ; then
+      && [ "$1" != "debug" ]; then
       printf_stderr "\n$_BASH_PROMPT ${COMP_WORDS[@]}"
   fi
 
-  if [ "$1" = "debug" ] ; then
-      if [ -n "$cur" ]; then
-          printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep -- "$cur")\n"
-      else
-          printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep -- "$cur")\n"
-      fi
+  if [ "$1" = "debug" ]; then
+      printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep -- "$cur")\n"
   else
       COMPREPLY=( $(compgen -W "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' \
                                  | sort -u)" -- $cur) )
@@ -494,7 +499,7 @@ _ovs_appctl_complete() {
 }
 
 # Debug mode.
-if [ "$1" = "debug" ] ; then
+if [ "$1" = "debug" ]; then
     shift
     COMP_TYPE=0
     COMP_WORDS=($@)
@@ -502,9 +507,9 @@ if [ "$1" = "debug" ] ; then
 
     # If the last argument is TAB, it means that the previous
     # argument is already complete and script should complete
-    # next argument which is not input yet.  This is a hack
-    # since compgen will break the input whitespace even
-    # though there is no input after it but bash cannot.
+    # next argument which is not input yet.  This hack is for
+    # compromising the fact that bash cannot take unquoted
+    # empty argument.
     if [ "${COMP_WORDS[-1]}" = "TAB" ]; then
         COMP_WORDS[${#COMP_WORDS[@]}-1]=""
     fi
