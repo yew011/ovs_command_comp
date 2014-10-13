@@ -156,13 +156,9 @@ printf_stderr() {
 # The code below is taken from Peter Amidon.  His change makes it more
 # robust.
 extract_bash_prompt() {
-    local myPS1, vars, var, funcs, func, v
+    local myPS1 v
 
     myPS1="$(sed 's/Begin prompt/\\Begin prompt/; s/End prompt/\\End prompt/' <<< "$PS1")"
-    vars="$(env | cut -d'=' -f1)"
-    for var in $vars; do export $var; done
-    funcs="$(declare -F | cut -d' ' -f3)"
-    for func in $funcs; do export -f $func; done
     v="$(bash --norc --noprofile -i 2>&1 <<< $'PS1=\"'"$myPS1"$'\" \n# Begin prompt\n# End prompt')"
     v="${v##*# Begin prompt}"
     _BASH_PROMPT="$(tail -n +2 <<< "${v%# End prompt*}" | sed 's/\\Begin prompt/Begin prompt/; s/\\End prompt/End prompt/')"
