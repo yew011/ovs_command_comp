@@ -22,7 +22,7 @@ _COMP_WORDLIST=
 # For ovs-appctl command only.
 #
 # Target in the current completion, default ovs-vswitchd.
-_APPCTL_TARGET="ovs-vswitchd"
+_APPCTL_TARGET=
 # Possible targets.
 _POSSIBLE_TARGETS="ovs-vswitchd ovsdb-server ovs-ofctl"
 
@@ -42,7 +42,7 @@ extract_subcmds() {
         target="--target $_APPCTL_TARGET"
     fi
 
-    subcmds="$($command $target help 2>/dev/null | tail -n +2 | cut -c3- \
+    subcmds="$($command $target list-commands 2>/dev/null | tail -n +2 | cut -c3- \
                  | cut -d ' ' -f1)" || error="TRUE"
 
     if [ -z "$error" ]; then
@@ -364,7 +364,7 @@ parse_and_compgen() {
     fi
 
     # Extracts the subcommand format.
-    subcmd_format="$($command $target help 2>/dev/null | tail -n +2 | cut -c3- \
+    subcmd_format="$($command $target list-commands 2>/dev/null | tail -n +2 | cut -c3- \
                      | awk -v opt=$subcmd '$1 == opt {print $0}' | tr -s ' ' )"
 
     # Prints subcommand format.
@@ -413,6 +413,8 @@ ovs_comp_helper() {
             # all options.
             if [ "$_COMMAND" = "ovs-appctl" ] \
                 && [[ "${cmd_line_so_far[i]}" =~ ^--target$ ]]; then
+                _APPCTL_TARGET="ovs-vswitchd"
+
                 if [ -n "${cmd_line_so_far[j+1]}" ]; then
                     local daemon
 

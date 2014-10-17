@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Tests for the ovs-appctl-compgen.bash
+# Tests for the ovs-command-compgen.bash
 #
-# Please run this with ovs-appctl-compgen.bash script inside
+# Please run this with ovs-command-compgen.bash script inside
 # ovs-sandbox, under the same directory.
 #
 # For information about running the ovs-sandbox, please refer to
@@ -66,10 +66,10 @@ ovs_apptcl_TAB() {
     if [ -n "$target" ]; then
         target_line="--target $target"
     fi
-    comp_output="$(bash ovs-appctl-compgen.bash debug ovs-appctl $target_line TAB 2>&1)"
+    comp_output="$(bash ovs-command-compgen.bash debug ovs-appctl $target_line TAB 2>&1)"
     tmp="$(get_available_completions "$comp_output")"
     expect="$(ovs-appctl --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)
-$(ovs-appctl $target_line help | tail -n +2 | cut -c3- | cut -d ' ' -f1)"
+$(ovs-appctl $target_line list-commands | tail -n +2 | cut -c3- | cut -d ' ' -f1)"
     if [ "$tmp" = "$expect" ]; then
         echo "ok"
     else
@@ -90,7 +90,7 @@ ovs-vsctl add-port br0 p1
 cat <<EOF
 
 ## ------------------------------ ##
-## ovs-appctl-compgen unit tests. ##
+## ovs-command-compgen unit tests. ##
 ## ------------------------------ ##
 
 EOF
@@ -100,7 +100,7 @@ EOF
 
 reset_globals
 
-COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl --tar 2>&1)"
+COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl --tar 2>&1)"
 TMP="$(get_available_completions "$COMP_OUTPUT")"
 EXPECT="--target"
 if [ "$TMP" = "$EXPECT" ]; then
@@ -116,7 +116,7 @@ print_result "complete ovs-appctl --targ[TAB]" "$TEST_RESULT"
 
 reset_globals
 
-COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl --target TAB 2>&1)"
+COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl --target TAB 2>&1)"
 TMP="$(get_available_completions "$COMP_OUTPUT")"
 EXPECT="$(echo ${TEST_TARGETS[@]} | tr ' ' '\n' | sort)"
 if [ "$TMP" = "$EXPECT" ]; then
@@ -162,13 +162,13 @@ done
 
 reset_globals
 
-TMP="$(ovs-appctl help | tail -n +2 | cut -c3- | cut -d ' ' -f1)"
+TMP="$(ovs-appctl list-commands | tail -n +2 | cut -c3- | cut -d ' ' -f1)"
 
 # for each subcmd, check the print of subcmd format
 for i in $TMP; do
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl $i TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl $i TAB 2>&1)"
     tmp="$(get_command_format "$COMP_OUTPUT")"
-    EXPECT="$(ovs-appctl help | tail -n+2 | cut -c3- | grep -- "^$i " | tr -s ' ')"
+    EXPECT="$(ovs-appctl list-commands | tail -n+2 | cut -c3- | grep -- "^$i " | tr -s ' ')"
     if [ "$tmp" = "$EXPECT" ]; then
         TEST_RESULT=ok
     else
@@ -188,7 +188,7 @@ reset_globals
 
 for i in loop_once; do
     # check the top level completion.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl bfd/set-forwarding TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl bfd/set-forwarding TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"normal\" is expanded to: normal
 argument keyword \"false\" is expanded to: false
@@ -208,7 +208,7 @@ argument keyword \"interface\" is expanded to:  p1"
     fi
 
     # set argument to 'true', there should be no more completions.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl bfd/set-forwarding true TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl bfd/set-forwarding true TAB 2>&1)"
     TMP="$(sed -e '/./,$!d' <<< "$COMP_OUTPUT")"
     EXPECT="Command format:
 bfd/set-forwarding [interface] normal|false|true"
@@ -218,7 +218,7 @@ bfd/set-forwarding [interface] normal|false|true"
     fi
 
     # set argument to 'p1', there should still be the completion for booleans.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl bfd/set-forwarding p1 TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl bfd/set-forwarding p1 TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"normal\" is expanded to: normal
 argument keyword \"false\" is expanded to: false
@@ -237,7 +237,7 @@ argument keyword \"true\" is expanded to: true"
     fi
 
     # set argument to 'p1 false', there should still no more completions.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl bfd/set-forwarding p1 false TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl bfd/set-forwarding p1 false TAB 2>&1)"
     TMP="$(sed -e '/./,$!d' <<< "$COMP_OUTPUT")"
     EXPECT="Command format:
 bfd/set-forwarding [interface] normal|false|true"
@@ -260,7 +260,7 @@ reset_globals
 
 for i in loop_once; do
     # check the top level completion.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl lacp/show TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl lacp/show TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"port\" is expanded to: br0 p1"
     if [ "$TMP" != "$EXPECT" ]; then
@@ -277,7 +277,7 @@ for i in loop_once; do
     fi
 
     # set argument to 'p1', there should be no more completions.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl lacp/show p1 TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl lacp/show p1 TAB 2>&1)"
     TMP="$(sed -e '/./,$!d' <<< "$COMP_OUTPUT")"
     EXPECT="Command format:
 lacp/show [port]"
@@ -300,7 +300,7 @@ reset_globals
 
 for i in loop_once; do
     # check the top level completion.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"bridge\" is expanded to: br0
 argument keyword \"odp_flow\" is expanded to: odp_flow
@@ -319,7 +319,7 @@ argument keyword \"dp_name\" is expanded to: ovs-system"
     fi
 
     # set argument to 'ovs-system', should go to the dp-name path.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace ovs-system TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace ovs-system TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"odp_flow\" is expanded to: odp_flow"
     if [ "$TMP" != "$EXPECT" ]; then
@@ -336,7 +336,7 @@ argument keyword \"dp_name\" is expanded to: ovs-system"
     fi
 
     # set odp_flow to some random string, should go to the next level.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace ovs-system "in_port(123),mac(),ip,tcp" TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace ovs-system "in_port(123),mac(),ip,tcp" TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"-generate\" is expanded to: -generate
 argument keyword \"packet\" is expanded to: packet"
@@ -354,7 +354,7 @@ argument keyword \"packet\" is expanded to: packet"
     fi
 
     # set packet to some random string, there should be no more completions.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace ovs-system "in_port(123),mac(),ip,tcp" "ABSJDFLSDJFOIWEQR" TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace ovs-system "in_port(123),mac(),ip,tcp" "ABSJDFLSDJFOIWEQR" TAB 2>&1)"
     TMP="$(sed -e '/./,$!d' <<< "$COMP_OUTPUT")"
     EXPECT="Command format:
 ofproto/trace {[dp_name] odp_flow | bridge br_flow} [-generate|packet]"
@@ -364,7 +364,7 @@ ofproto/trace {[dp_name] odp_flow | bridge br_flow} [-generate|packet]"
     fi
 
     # set argument to 'br0', should go to the bridge path.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace br0 TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace br0 TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"br_flow\" is expanded to: br_flow"
     if [ "$TMP" != "$EXPECT" ]; then
@@ -381,7 +381,7 @@ ofproto/trace {[dp_name] odp_flow | bridge br_flow} [-generate|packet]"
     fi
 
     # set argument to some random string, should go to the odp_flow path.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ofproto/trace "in_port(123),mac(),ip,tcp" TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace "in_port(123),mac(),ip,tcp" TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"-generate\" is expanded to: -generate
 argument keyword \"packet\" is expanded to: packet"
@@ -412,7 +412,7 @@ reset_globals
 
 for i in loop_once; do
     # check the top level completion.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl vlog/set TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl vlog/set TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"PATTERN:facility:pattern\" is expanded to: PATTERN:facility:pattern
 argument keyword \"spec\" is expanded to: spec"
@@ -430,7 +430,7 @@ argument keyword \"spec\" is expanded to: spec"
     fi
 
     # set argument to random 'abcd', there should be no more completions.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl vlog/set abcd TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl vlog/set abcd TAB 2>&1)"
     TMP="$(sed -e '/./,$!d' <<< "$COMP_OUTPUT")"
     EXPECT="Command format:
 vlog/set {spec | PATTERN:facility:pattern}"
@@ -452,7 +452,7 @@ ovs-vsctl del-port p1
 
 for i in loop_once; do
     # check match on interface, there should be no available interface expansion.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl bfd/set-forwarding TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl bfd/set-forwarding TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"normal\" is expanded to: normal
 argument keyword \"false\" is expanded to: false
@@ -472,7 +472,7 @@ argument keyword \"interface\" is expanded to:"
     fi
 
     # check match on port, there should be no p1 as port.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl lacp/show TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl lacp/show TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"port\" is expanded to: br0"
     if [ "$TMP" != "$EXPECT" ]; then
@@ -500,7 +500,7 @@ reset_globals
 ovs-vsctl del-br br0
 for i in loop_once; do
     # check match on port, there should be no p1 as port.
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl bridge/dump-flows TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl bridge/dump-flows TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT="argument keyword \"bridge\" is expanded to:"
     if [ "$TMP" != "$EXPECT" ]; then
@@ -527,7 +527,7 @@ reset_globals
 
 for i in loop_once; do
     # incorrect subcommand
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ERROR 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ERROR 2>&1)"
     TMP="$(echo "$COMP_OUTPUT" | sed -e 's/[ \t]*$//' | sed -e '/./,$!d')"
     EXPECT=
     if [ "$TMP" != "$EXPECT" ]; then
@@ -535,7 +535,7 @@ for i in loop_once; do
         break
     fi
 
-    COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl ERROR TAB 2>&1)"
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ERROR TAB 2>&1)"
     TMP="$(echo "$COMP_OUTPUT" | sed -e 's/[ \t]*$//' | sed -e '/./!d')"
     EXPECT="Command format:"
     if [ "$TMP" != "$EXPECT" ]; then
@@ -563,7 +563,7 @@ for i in ${TEST_TARGETS[@]}; do
         daemon="$i"
 
         # should show no avaiable subcommands.
-        COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl --target $daemon TAB 2>&1)"
+        COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl --target $daemon TAB 2>&1)"
         TMP="$(get_available_completions "$COMP_OUTPUT")"
         EXPECT="$(ovs-appctl --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)"
         if [ "$TMP" != "$EXPECT" ]; then
@@ -572,7 +572,7 @@ for i in ${TEST_TARGETS[@]}; do
         fi
 
         # should not match any input.
-        COMP_OUTPUT="$(bash ovs-appctl-compgen.bash debug ovs-appctl --target $daemon ERROR SUBCMD TAB 2>&1)"
+        COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl --target $daemon ERROR SUBCMD TAB 2>&1)"
         TMP="$(echo "$COMP_OUTPUT" | sed -e 's/[ \t]*$//' | sed -e '/./!d')"
         EXPECT="Command format:"
         if [ "$TMP" != "$EXPECT" ]; then
