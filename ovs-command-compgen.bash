@@ -8,15 +8,21 @@
 #
 #
 # Expandable keywords.
-_KWORDS=(bridge port interface dp_name dp)
+_KWORDS=(bridge switch port interface dp_name dp)
+# Command name.
+_COMMAND=
 # Printf enabler.
 _PRINTF_ENABLE=
 # Bash prompt.
 _BASH_PROMPT=
+# Output to the compgen.
+_COMP_WORDLIST=
+
+#
+# For ovs-appctl command only.
+#
 # Target in the current completion, default ovs-vswitchd.
 _APPCTL_TARGET="ovs-vswitchd"
-# Output to the compgen.
-_APPCTL_COMP_WORDLIST=
 # Possible targets.
 _POSSIBLE_TARGETS="ovs-vswitchd ovsdb-server ovs-ofctl"
 
@@ -25,14 +31,18 @@ _POSSIBLE_TARGETS="ovs-vswitchd ovsdb-server ovs-ofctl"
 #
 #
 #
-# Extracts all subcommands of target.
-# If cannot find target, returns nothing.
+# Extracts all subcommands of 'command'.
+# If fails, returns nothing.
 extract_subcmds() {
-    local target=$_APPCTL_TARGET
-    local subcmds=
-    local error
+    local command=$_COMMAND
+    local target=
+    local subcmds error
 
-    subcmds="$(ovs-appctl --target $target help 2>/dev/null | tail -n +2 | cut -c3- \
+    if [ -n "$_APPCTL_TARGET" ]; then
+        target="--target $_APPCTL_TARGET"
+    fi
+
+    subcmds="$($command $target help 2>/dev/null | tail -n +2 | cut -c3- \
                  | cut -d ' ' -f1)" || error="TRUE"
 
     if [ -z "$error" ]; then
@@ -41,8 +51,17 @@ extract_subcmds() {
 }
 
 # Extracts all long options of ovs-appctl.
+# If fails, returns nothing.
 extract_options() {
-    echo "$(ovs-appctl --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)"
+    local command=$_COMMAND
+    local options error
+
+    options="$($command --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)" \
+        || error="TRUE"
+
+    if [ -z "$error" ]; then
+        echo "$options"
+    fi
 }
 
 
@@ -237,7 +256,7 @@ arg_to_kwords() {
 
     for kword in ${possible_kwords[@]}; do
         case "$kword" in
-            bridge)
+            bridge|switch)
                 match="$(complete_bridge "$arg")"
                 ;;
             port)
@@ -283,7 +302,7 @@ kwords_to_args() {
         local match=
 
         case "${kword}" in
-            bridge)
+            bridge|switch)
                 match="$(complete_bridge "")"
                 ;;
             port)
@@ -333,14 +352,19 @@ kwords_to_args() {
 # This function takes the current command line arguments as input,
 # finds the command format and returns the possible completions.
 parse_and_compgen() {
+    local command=$_COMMAND
     local subcmd_line=($@)
     local subcmd=${subcmd_line[0]}
-    local target=$_APPCTL_TARGET
+    local target=
     local subcmd_format=
     local comp_wordlist=
 
+    if [ -n "$_APPCTL_TARGET" ]; then
+        target="--target $_APPCTL_TARGET"
+    fi
+
     # Extracts the subcommand format.
-    subcmd_format="$(ovs-appctl --target $target help 2>/dev/null | tail -n +2 | cut -c3- \
+    subcmd_format="$($command $target help 2>/dev/null | tail -n +2 | cut -c3- \
                      | awk -v opt=$subcmd '$1 == opt {print $0}' | tr -s ' ' )"
 
     # Prints subcommand format.
@@ -363,18 +387,19 @@ parse_and_compgen() {
 # Takes the current command line arguments and returns the possible
 # completions.
 #
-# At the beginning, the options are checked and completed.  The function
-# looks for the --target option which gives the target daemon name.
-# If it is not provided, by default, 'ovs-vswitchd' is used.
+# At the beginning, the options are checked and completed.  For ovs-appctl
+# completion, The function looks for the --target option which gives the
+# target daemon name.  If it is not provided, by default, 'ovs-vswitchd'
+# is used.
 #
 # Then, tries to locate and complete the subcommand.  If the subcommand
 # is provided, the following arguments are passed to the 'parse_and_compgen'
 # function to figure out the corresponding completion of the subcommand.
 #
 # Returns the completion arguments on success.
-ovs_appctl_comp_helper() {
+ovs_comp_helper() {
     local cmd_line_so_far=($@)
-    local comp_wordlist appctl_subcmd i
+    local comp_wordlist _subcmd i
     local j=-1
 
     for i in "${!cmd_line_so_far[@]}"; do
@@ -386,7 +411,8 @@ ovs_appctl_comp_helper() {
             # If --target is found, locate the target daemon.
             # Else, it is an option command, fill the comp_wordlist with
             # all options.
-            if [[ "${cmd_line_so_far[i]}" =~ ^--target$ ]]; then
+            if [ "$_COMMAND" = "ovs-appctl" ] \
+                && [[ "${cmd_line_so_far[i]}" =~ ^--target$ ]]; then
                 if [ -n "${cmd_line_so_far[j+1]}" ]; then
                     local daemon
 
@@ -405,18 +431,18 @@ ovs_appctl_comp_helper() {
                     break
                 fi
             else
-                comp_wordlist="$(extract_options)"
+                comp_wordlist="$(extract_options $_COMMAND)"
                 break
             fi
         fi
         # Takes the first non-option argument as subcmd.
-        appctl_subcmd="${cmd_line_so_far[i]}"
+        _subcmd="${cmd_line_so_far[i]}"
         break
     done
 
     if [ -z "$comp_wordlist" ]; then
         # If the subcommand is not found, provides all subcmds and options.
-        if [ -z "$appctl_subcmd" ]; then
+        if [ -z "$_subcmd" ]; then
             comp_wordlist="$(extract_subcmds) $(extract_options)"
         # Else parses the current arguments and finds the possible completions.
         else
@@ -428,19 +454,16 @@ ovs_appctl_comp_helper() {
     echo "$comp_wordlist"
 }
 
-
-
-export LC_ALL=C
-
 # Compgen
 # =======
 #
 #
 #
 # The compgen function.
-_ovs_appctl_complete() {
+_ovs_command_complete() {
   local cur prev
 
+  _COMMAND=${COMP_WORDS} # element 0 is the command.
   COMPREPLY=()
   cur=${COMP_WORDS[COMP_CWORD]}
 
@@ -459,40 +482,42 @@ _ovs_appctl_complete() {
   # Invokes the helper function to get all available completions.
   # Always not input the 'COMP_WORD' at 'COMP_CWORD', since it is
   # the one to be completed.
-  _APPCTL_COMP_WORDLIST="$(ovs_appctl_comp_helper \
+  _COMP_WORDLIST="$(ovs_comp_helper \
       ${COMP_WORDS[@]:1:COMP_CWORD-1})"
 
   # This is a hack to prevent autocompleting when there is only one
   # available completion and printf disabled.
-  if [ -z "$_PRINTF_ENABLE" ] && [ -n "$_APPCTL_COMP_WORDLIST" ]; then
-      _APPCTL_COMP_WORDLIST="$_APPCTL_COMP_WORDLIST void"
+  if [ -z "$_PRINTF_ENABLE" ] && [ -n "$_COMP_WORDLIST" ]; then
+      _COMP_WORDLIST="$_COMP_WORDLIST void"
   fi
 
   # Prints all available completions to stderr.  If there is only one matched
   # completion, do nothing.
   if [ -n "$_PRINTF_ENABLE" ] \
-      && [ -n "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | \
+      && [ -n "$(echo $_COMP_WORDLIST | tr ' ' '\n' | \
                 grep -- "^$cur")" ]; then
       printf_stderr "\nAvailable completions:\n"
   fi
 
-  # If there is no match between '$cur' and the '$_APPCTL_COMP_WORDLIST'
+  # If there is no match between '$cur' and the '$_COMP_WORDLIST'
   # prints a bash prompt since the 'complete' will not print it.
   if [ -n "$_PRINTF_ENABLE" ] \
-      && [ -z "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur")" ] \
+      && [ -z "$(echo $_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur")" ] \
       && [ "$1" != "debug" ]; then
       printf_stderr "\n$_BASH_PROMPT ${COMP_WORDS[@]}"
   fi
 
   if [ "$1" = "debug" ]; then
-      printf_stderr "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep -- "$cur")\n"
+      printf_stderr "$(echo $_COMP_WORDLIST | tr ' ' '\n' | sort -u | grep -- "$cur")\n"
   else
-      COMPREPLY=( $(compgen -W "$(echo $_APPCTL_COMP_WORDLIST | tr ' ' '\n' \
+      COMPREPLY=( $(compgen -W "$(echo $_COMP_WORDLIST | tr ' ' '\n' \
                                  | sort -u)" -- $cur) )
   fi
 
   return 0
 }
+
+export LC_ALL=C
 
 # Debug mode.
 if [ "$1" = "debug" ]; then
@@ -510,8 +535,11 @@ if [ "$1" = "debug" ]; then
         COMP_WORDS[${#COMP_WORDS[@]}-1]=""
     fi
 
-    _ovs_appctl_complete "debug"
+    _ovs_command_complete "debug"
 # Normal compgen mode.
 else
-    complete -F _ovs_appctl_complete ovs-appctl
+    complete -F _ovs_command_complete ovs-appctl
+    complete -F _ovs_command_complete ovs-ofctl
+    complete -F _ovs_command_complete ovs-dpctl
+    complete -F _ovs_command_complete ovsdb-tool
 fi
