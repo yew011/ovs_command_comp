@@ -13,14 +13,14 @@ With rounds of optimization, there should not be noticeable display lag. ;D
 Supported commands:
 ovs-appctl, ovs-ofctl, ovs-dpctl, ovsdb-tool
 
-*TODO:
-- only support small set of important keywords {dp, datapath, bridge, switch,
-  port, interface, iface}
-- does not support keyword conversion on nested option. (e.g. ovsdb-tool create
-  [db [schema]])
-- does not support expansion on repeatitive argument. (e.g. ovs-dpctl show
-  [dp...])
+*Limitations:
+- only support small set of important keywords (dp, datapath, bridge, switch, port, interface, iface).
 
+- does not support parsing of nested option (e.g. ovsdb-tool create [db [schema]]).
+
+- does not support expansion on repeatitive argument (e.g. ovs-dpctl show [dp...]).
+
+- only support matching on long options, and only in the format (--option [arg], i.e. should not use --option=[arg]).
 
 
 Example Output:

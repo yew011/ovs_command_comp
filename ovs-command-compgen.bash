@@ -2,6 +2,34 @@
 #
 # A bash command completion script for ovs-appctl.
 #
+#
+# Right now, the script can do the following:
+#
+#    - display available completion or complete on unfinished user input
+#      (long option, subcommand, and argument).
+#
+#    - once the subcommand (e.g. ofproto/trace) has been given, the
+#      script will print the subcommand format.
+#
+#    - the script can convert between keywords like 'bridge/port/interface/dp'
+#      and the available record in ovsdb.
+#
+# The limitation are:
+#
+#    - only support small set of important keywords
+#      (dp, datapath, bridge, switch, port, interface, iface).
+#
+#    - does not support parsing of nested option
+#      (e.g. ovsdb-tool create [db [schema]]).
+#
+#    - does not support expansion on repeatitive argument
+#      (e.g. ovs-dpctl show [dp...]).
+#
+#    - only support matching on long options, and only in the format
+#      (--option [arg], i.e. should not use --option=[arg]).
+#
+#
+#
 # Keywords
 # ========
 #
@@ -64,7 +92,20 @@ extract_options() {
     fi
 }
 
+# Returns the option format, if the option asks for an argument.
+# If fails, returns nothing.
+option_require_arg() {
+    local command=$_COMMAND
+    local option=$1
+    local require_arg error
 
+    require_arg="$($command --option | sort | sed -n '/^--.*/p' | grep -- "$option" | grep -- "=")" \
+        || error="TRUE"
+
+    if [ -z "$error" ]; then
+        echo "$require_arg"
+    fi
+}
 
 # Combination Discovery
 # =====================
@@ -407,7 +448,7 @@ parse_and_compgen() {
 # Returns the completion arguments on success.
 ovs_comp_helper() {
     local cmd_line_so_far=($@)
-    local comp_wordlist _subcmd i
+    local comp_wordlist _subcmd options i
     local j=-1
 
     for i in "${!cmd_line_so_far[@]}"; do
@@ -441,8 +482,24 @@ ovs_comp_helper() {
                     break
                 fi
             else
-                comp_wordlist="$(extract_options $_COMMAND)"
-                break
+                options="$(extract_options $_COMMAND)"
+                # See if we could find the exact option.
+                if [ "${cmd_line_so_far[i]}" = "$(grep -- "${cmd_line_so_far[i]}" <<< "$options")" ]; then
+                    # If an argument is required and next argument is non-empty,
+                    # skip it.  Else, return directly.
+                    if [ -n "$(option_require_arg "${cmd_line_so_far[i]}")" ]; then
+                        ((j++))
+                        if [ -z "${cmd_line_so_far[j]}" ]; then
+                            printf_stderr "\nOption requires an arugment."
+                            return
+                        fi
+                    fi
+                    continue
+                # Else, need to keep completing on option.
+                else
+                    comp_wordlist="$options"
+                    break
+                fi
             fi
         fi
         # Takes the first non-option argument as subcmd.
