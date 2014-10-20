@@ -16,7 +16,8 @@ EXPECT=
 TEST_RESULT=
 
 TEST_COUNTER=0
-TEST_TARGETS=(ovs-vswitchd ovsdb-server ovs-ofctl)
+TEST_COMMANDS=(ovs-appctl ovs-ofctl ovs-dpctl ovsdb-tool)
+TEST_APPCTL_TARGETS=(ovs-vswitchd ovsdb-server ovs-ofctl)
 
 #
 # Helper functions.
@@ -69,7 +70,7 @@ ovs_apptcl_TAB() {
     comp_output="$(bash ovs-command-compgen.bash debug ovs-appctl $target_line TAB 2>&1)"
     tmp="$(get_available_completions "$comp_output")"
     expect="$(ovs-appctl --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)
-$(ovs-appctl $target_line list-commands | tail -n +2 | cut -c3- | cut -d ' ' -f1)"
+$(ovs-appctl $target_line list-commands | tail -n +2 | cut -c3- | cut -d ' ' -f1 | sort)"
     if [ "$tmp" = "$expect" ]; then
         echo "ok"
     else
@@ -89,11 +90,33 @@ ovs-vsctl add-port br0 p1
 #
 cat <<EOF
 
-## ------------------------------ ##
+## ------------------------------- ##
 ## ovs-command-compgen unit tests. ##
-## ------------------------------ ##
+## ------------------------------- ##
 
 EOF
+
+
+# complete ovs-appctl [TAB]
+# complete ovs-dpctl  [TAB]
+# complete ovs-ofctl  [TAB]
+# complete ovsdb-tool [TAB]
+
+for test_command in ${TEST_COMMANDS[@]}; do
+    reset_globals
+
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ${test_command} TAB 2>&1)"
+    TMP="$(get_available_completions "$COMP_OUTPUT")"
+    EXPECT="$(${test_command} --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)
+$(${test_command} list-commands | tail -n +2 | cut -c3- | cut -d ' ' -f1 | sort)"
+    if [ "$TMP" = "$EXPECT" ]; then
+        TEST_RESULT=ok
+    else
+        TEST_RESULT=fail
+    fi
+
+    print_result "complete ${test_command} [TAB]" "$TEST_RESULT"
+done
 
 
 # complete ovs-appctl --tar[TAB]
@@ -118,7 +141,7 @@ reset_globals
 
 COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl --target TAB 2>&1)"
 TMP="$(get_available_completions "$COMP_OUTPUT")"
-EXPECT="$(echo ${TEST_TARGETS[@]} | tr ' ' '\n' | sort)"
+EXPECT="$(echo ${TEST_APPCTL_TARGETS[@]} | tr ' ' '\n' | sort)"
 if [ "$TMP" = "$EXPECT" ]; then
     TEST_RESULT=ok
 else
@@ -128,31 +151,24 @@ fi
 print_result "complete ovs-appctl --target [TAB]" "$TEST_RESULT"
 
 
-# complete ovs-appctl [TAB]
 # complete ovs-appctl --target ovs-vswitchd [TAB]
 # complete ovs-appctl --target ovsdb-server [TAB]
-# complete ovs-appctl --target ovs-ofctl [TAB]
+# complete ovs-appctl --target ovs-ofctl    [TAB]
 
 reset_globals
 
-for i in NONE ${TEST_TARGETS[@]}; do
-    input=
-    test_target=
+for target in ${TEST_APPCTL_TARGETS[@]}; do
+    target_field="--target $i "
 
-    if [ "$i" != "NONE" ]; then
-        input="$i"
-        test_target="--target $i "
-    fi
-
-    if [ "$i" = "ovs-ofctl" ]; then
+    if [ "$target" = "ovs-ofctl" ]; then
         ovs-ofctl monitor br0 --detach --no-chdir --pidfile
     fi
 
-    TEST_RESULT="$(ovs_apptcl_TAB $input)"
+    TEST_RESULT="$(ovs_apptcl_TAB $target)"
 
-    print_result "complete ovs-appctl ${test_target}[TAB]" "$TEST_RESULT"
+    print_result "complete ovs-appctl ${target_field}[TAB]" "$TEST_RESULT"
 
-    if [ "$i" = "ovs-ofctl" ]; then
+    if [ "$target" = "ovs-ofctl" ]; then
         ovs-appctl --target ovs-ofctl exit
     fi
 done
@@ -162,13 +178,13 @@ done
 
 reset_globals
 
-TMP="$(ovs-appctl list-commands | tail -n +2 | cut -c3- | cut -d ' ' -f1)"
+TMP="$(ovs-appctl list-commands | tail -n +2 | cut -c3- | cut -d ' ' -f1 | sort)"
 
 # for each subcmd, check the print of subcmd format
 for i in $TMP; do
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl $i TAB 2>&1)"
     tmp="$(get_command_format "$COMP_OUTPUT")"
-    EXPECT="$(ovs-appctl list-commands | tail -n+2 | cut -c3- | grep -- "^$i " | tr -s ' ')"
+    EXPECT="$(ovs-appctl list-commands | tail -n+2 | cut -c3- | grep -- "^$i " | tr -s ' ' | sort)"
     if [ "$tmp" = "$EXPECT" ]; then
         TEST_RESULT=ok
     else
@@ -515,6 +531,17 @@ for i in loop_once; do
         TEST_RESULT=fail
         break
     fi
+
+    # check 'ovs-ofctl monitor [misslen] [invalid_ttl] [watch:[...]]', should
+    # not show any available completion.
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-ofctl monitor non_exist_br TAB 2>&1)"
+    TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
+    EXPECT=
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
     TEST_RESULT=ok
 done
 
@@ -554,9 +581,10 @@ print_result "negative test - incorrect subcommand" "$TEST_RESULT"
 # negative test - no ovs-ofctl
 # should not see any error.
 
+reset_globals
 killall ovs-vswitchd ovsdb-server
 
-for i in ${TEST_TARGETS[@]}; do
+for i in ${TEST_APPCTL_TARGETS[@]}; do
     for j in loop_once; do
         reset_globals
 
@@ -584,3 +612,22 @@ for i in ${TEST_TARGETS[@]}; do
     done
     print_result "negative test - no $daemon" "$TEST_RESULT"
 done
+
+
+# negative test - do not match on nested option
+
+reset_globals
+
+for i in loop_once; do
+    COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovsdb-tool create TAB 2>&1)"
+    TMP="$(get_available_completions "$COMP_OUTPUT")"
+    EXPECT=
+    if [ "$TMP" != "$EXPECT" ]; then
+        TEST_RESULT=fail
+        break
+    fi
+
+    TEST_RESULT=ok
+done
+
+print_result "negative test - do not match on nested option" "$TEST_RESULT"

@@ -8,7 +8,7 @@
 #
 #
 # Expandable keywords.
-_KWORDS=(bridge switch port interface dp_name dp)
+_KWORDS=(bridge switch port interface iface dp_name dp)
 # Command name.
 _COMMAND=
 # Printf enabler.
@@ -84,12 +84,16 @@ find_possible_comps() {
         for arg in $line; do
             # If it is an optional argument, gets all completions,
             # and continues.
-            if [ ! -z "$(grep -- "\[*\]" <<< "$arg")" ]; then
+            if [ -n "$(sed -n '/^\[.*\]$/p' <<< "$arg")" ]; then
                 local opt_arg="$(sed -e 's/^\[\(.*\)\]$/\1/' <<< "$arg")"
                 local opt_args=()
 
                 IFS='|' read -a opt_args <<< "$opt_arg"
                 comps="${opt_args[@]} $comps"
+            # If it is in format "\[*", it is a start of nested
+            # option, do not parse.
+            elif [ -n "$(sed -n "/^\[.*$/p" <<< "$arg")" ]; then
+                break;
             # If it is a compulsory argument, adds it to the comps
             # and break, since all following args are for next stage.
             else
@@ -140,6 +144,10 @@ subcmd_find_comp_based_on_input() {
         possible_comps=$(find_possible_comps "$combs")
         # Finds the kword.
         kword="$(arg_to_kwords "$arg" "$possible_comps")"
+        # Returns if could not find 'kword'
+        if [ -z "$kword" ]; then
+            return
+        fi
         # Trims the 'combs', keeps context only after 'kword'.
         if [ -n "$combs" ]; then
             combs="$(sed -n "s@^.*\[\?$kword|\?[a-z_]*\]\? @@p" <<< "$combs")"
@@ -262,7 +270,7 @@ arg_to_kwords() {
             port)
                 match="$(complete_port "$arg")"
                 ;;
-            interface)
+            interface|iface)
                 match="$(complete_iface "$arg")"
                 ;;
             dp_name|dp)
@@ -308,7 +316,7 @@ kwords_to_args() {
             port)
                 match="$(complete_port "")"
                 ;;
-            interface)
+            interface|iface)
                 match="$(complete_iface "")"
                 ;;
             dp_name|dp)
@@ -519,6 +527,7 @@ _ovs_command_complete() {
   return 0
 }
 
+# Needed for the sorting of completions in display.
 export LC_ALL=C
 
 # Debug mode.

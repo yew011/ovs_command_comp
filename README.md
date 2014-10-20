@@ -6,13 +6,21 @@ Open Vswitch Command Completion, Bash~
 Requirement: Open Vswitch installed.
 
 To use the script, run:
-root@promg-2n-a-dhcp85:~/ovs_command_comp# . ovs_appctl_compgen.bash
+root@promg-2n-a-dhcp85:~/ovs_command_comp# . ovs-command-compgen.bash
 
 With rounds of optimization, there should not be noticeable display lag. ;D
 
+Supported commands:
+ovs-appctl, ovs-ofctl, ovs-dpctl, ovsdb-tool
+
 *TODO:
-Conversion between arguments and keywords are not ideal.
-More work needs to be down.
+- only support small set of important keywords {dp, datapath, bridge, switch,
+  port, interface, iface}
+- does not support keyword conversion on nested option. (e.g. ovsdb-tool create
+  [db [schema]])
+- does not support expansion on repeatitive argument. (e.g. ovs-dpctl show
+  [dp...])
+
 
 
 Example Output:
@@ -35,8 +43,8 @@ bond/enable-slave              dpctl/del-dp                   dpif/dump-dps     
 bond/hash                      dpctl/del-flow                 dpif/dump-flows                ofproto/trace                  vlog/list
 bond/list                      dpctl/del-flows                dpif/show                      ofproto/trace-packet-out       vlog/reopen
 bond/migrate                   dpctl/del-if                   exit                           qos/show                       vlog/set
-bond/set-active-slave          dpctl/dump-dps                 fdb/flush                      revalidator/wait               
-bond/show                      dpctl/dump-flows               fdb/show                       stp/tcn                        
+bond/set-active-slave          dpctl/dump-dps                 fdb/flush                      revalidator/wait
+bond/show                      dpctl/dump-flows               fdb/show                       stp/tcn
 
 
 root@promg-2n-a-dhcp85:~/alex_dev/ovs_command_comp# ovs-appctl ofproto/trace [tab]
@@ -45,13 +53,13 @@ Command format:
 ofproto/trace {[dp_name] odp_flow | bridge br_flow} [-generate|packet]
 
 Argument expansion:
-     argument keyword "bridge" is expanded to:  
-     argument keyword "odp_flow" is expanded to: odp_flow 
-     argument keyword "dp_name" is expanded to: ovs-system 
+     argument keyword "bridge" is expanded to:
+     argument keyword "odp_flow" is expanded to: odp_flow
+     argument keyword "dp_name" is expanded to: ovs-system
 
 Available completions:
 
-odp_flow    ovs-system  
-root@promg-2n-a-dhcp85:~/alex_dev/ovs_command_comp# ovs-appctl ofproto/trace 
+odp_flow    ovs-system
+root@promg-2n-a-dhcp85:~/alex_dev/ovs_command_comp# ovs-appctl ofproto/trace
 
 </pre>
