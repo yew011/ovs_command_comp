@@ -572,7 +572,7 @@ _ovs_command_complete() {
   if [ -n "$_PRINTF_ENABLE" ] \
       && [ -z "$(echo $_COMP_WORDLIST | tr ' ' '\n' | grep -- "^$cur")" ] \
       && [ "$1" != "debug" ]; then
-      printf_stderr "\n$_BASH_PROMPT ${COMP_WORDS[@]}"
+      printf_stderr "\n$_BASH_PROMPT${COMP_WORDS[@]}"
   fi
 
   if [ "$1" = "debug" ]; then
