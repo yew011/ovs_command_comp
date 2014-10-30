@@ -84,7 +84,7 @@ extract_options() {
     local command=$_COMMAND
     local options error
 
-    options="$($command --option | sort | sed -n '/^--.*/p' | cut -d '=' -f1)" \
+    options="$($command --option 2>/dev/null | sort | sed -n '/^--.*/p' | cut -d '=' -f1)" \
         || error="TRUE"
 
     if [ -z "$error" ]; then
@@ -368,10 +368,10 @@ kwords_to_args() {
                 match="$kword"
                 ;;
             *)
-                match=($kword)
+                match=
                 ;;
         esac
-        match=$(echo "$match" | tr '\n' ' ')
+        match=$(echo "$match" | tr '\n' ' ' | sed -e 's/^[ \t]*//')
         args+=( $match )
         if [ -n "$_PRINTF_ENABLE" ]; then
             local output_stderr=
@@ -380,8 +380,8 @@ kwords_to_args() {
                 printf_expand_once="once"
                 printf -v output_stderr "\nArgument expansion:\n"
             fi
-            printf -v output_stderr "$output_stderr     argument keyword \
-\"%s\" is expanded to: %s " "$kword" "$match"
+            printf -v output_stderr "$output_stderr     available completions \
+for keyword \"%s\": %s " "$kword" "$match"
 
             printf_stderr "$output_stderr"
         fi
@@ -451,6 +451,7 @@ ovs_comp_helper() {
     local comp_wordlist _subcmd options i
     local j=-1
 
+    # Parse the command-line args till we find the subcommand.
     for i in "${!cmd_line_so_far[@]}"; do
         # if $i is not greater than $j, it means the previous iteration
         # skips not-visited args.  so, do nothing and catch up.
@@ -555,7 +556,7 @@ _ovs_command_complete() {
   # This is a hack to prevent autocompleting when there is only one
   # available completion and printf disabled.
   if [ -z "$_PRINTF_ENABLE" ] && [ -n "$_COMP_WORDLIST" ]; then
-      _COMP_WORDLIST="$_COMP_WORDLIST void"
+      _COMP_WORDLIST="$_COMP_WORDLIST none void no-op"
   fi
 
   # Prints all available completions to stderr.  If there is only one matched

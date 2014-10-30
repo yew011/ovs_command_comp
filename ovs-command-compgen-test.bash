@@ -31,13 +31,21 @@ get_command_format() {
 get_argument_expansion() {
     local input="$@"
 
-    echo "$(grep -- "argument keyword .* is expanded to" <<< "$input" | sed -e 's/^[ \t]*//')"
+    echo "$(grep -- "available completions for keyword" <<< "$input" | sed -e 's/^[ \t]*//')"
 }
 
 get_available_completions() {
     local input="$@"
 
     echo "$(sed -e '1,/Available/d' <<< "$input" | tail -n+2)"
+}
+
+generate_expect_completions() {
+    local keyword="$1"
+    local completions="$2"
+
+    echo "available completions for keyword \"$keyword\": $completions" \
+        | sed -e 's/[ \t]*$//'
 }
 
 reset_globals() {
@@ -54,6 +62,21 @@ reset_globals() {
 print_result() {
     (( TEST_COUNTER++ ))
     printf "%2d: %-70s %s\n" "$TEST_COUNTER" "$1" "$2"
+}
+
+#
+# $1: test stage
+# $2: actual
+# $3: expect
+#
+print_error() {
+    local stage="$1"
+    local actual="$2"
+    local expect="$3"
+
+    printf "failed at stage_%s:\n" "$stage"
+    printf "actual output: %s\n" "$actual"
+    printf "expect output: %s\n" "$expect"
 }
 
 #
@@ -206,19 +229,21 @@ for i in loop_once; do
     # check the top level completion.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl bfd/set-forwarding TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"normal\" is expanded to: normal
-argument keyword \"false\" is expanded to: false
-argument keyword \"true\" is expanded to: true
-argument keyword \"interface\" is expanded to:  p1"
+    EXPECT="$(generate_expect_completions "normal" "")
+$(generate_expect_completions "false" "")
+$(generate_expect_completions "true" "")
+$(generate_expect_completions "interface" "p1")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "1" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
 
     # check the available completions.
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
-    EXPECT="false normal p1 true"
+    EXPECT="p1"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "2" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -229,6 +254,7 @@ argument keyword \"interface\" is expanded to:  p1"
     EXPECT="Command format:
 bfd/set-forwarding [interface] normal|false|true"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "3" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -236,18 +262,20 @@ bfd/set-forwarding [interface] normal|false|true"
     # set argument to 'p1', there should still be the completion for booleans.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl bfd/set-forwarding p1 TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"normal\" is expanded to: normal
-argument keyword \"false\" is expanded to: false
-argument keyword \"true\" is expanded to: true"
+    EXPECT="$(generate_expect_completions "normal" "")
+$(generate_expect_completions "false" "")
+$(generate_expect_completions "true" "")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "4" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
 
     # check the available completions.
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
-    EXPECT="false normal true"
+    EXPECT=
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "5" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -258,6 +286,7 @@ argument keyword \"true\" is expanded to: true"
     EXPECT="Command format:
 bfd/set-forwarding [interface] normal|false|true"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "6" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -278,8 +307,9 @@ for i in loop_once; do
     # check the top level completion.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl lacp/show TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"port\" is expanded to: br0 p1"
+    EXPECT="$(generate_expect_completions "port" "br0 p1")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "1" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -288,6 +318,7 @@ for i in loop_once; do
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
     EXPECT="br0 p1"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "2" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -298,6 +329,7 @@ for i in loop_once; do
     EXPECT="Command format:
 lacp/show [port]"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "3" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -318,18 +350,20 @@ for i in loop_once; do
     # check the top level completion.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"bridge\" is expanded to: br0
-argument keyword \"odp_flow\" is expanded to: odp_flow
-argument keyword \"dp_name\" is expanded to: ovs-system"
+    EXPECT="$(generate_expect_completions "bridge" "br0")
+$(generate_expect_completions "odp_flow" "")
+$(generate_expect_completions "dp_name" "ovs-system")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "1" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
 
     # check the available completions.
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
-    EXPECT="br0 odp_flow ovs-system"
+    EXPECT="br0 ovs-system"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "2" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -337,16 +371,18 @@ argument keyword \"dp_name\" is expanded to: ovs-system"
     # set argument to 'ovs-system', should go to the dp-name path.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace ovs-system TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"odp_flow\" is expanded to: odp_flow"
+    EXPECT="$(generate_expect_completions "odp_flow" "")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "3" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
 
     # check the available completions.
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
-    EXPECT="odp_flow"
+    EXPECT=
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "4" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -354,17 +390,19 @@ argument keyword \"dp_name\" is expanded to: ovs-system"
     # set odp_flow to some random string, should go to the next level.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace ovs-system "in_port(123),mac(),ip,tcp" TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"-generate\" is expanded to: -generate
-argument keyword \"packet\" is expanded to: packet"
+    EXPECT="$(generate_expect_completions "-generate" "-generate")
+$(generate_expect_completions "packet" "")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "5" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
 
     # check the available completions.
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
-    EXPECT="-generate packet"
+    EXPECT="-generate"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "6" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -375,6 +413,7 @@ argument keyword \"packet\" is expanded to: packet"
     EXPECT="Command format:
 ofproto/trace {[dp_name] odp_flow | bridge br_flow} [-generate|packet]"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "7" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -382,16 +421,18 @@ ofproto/trace {[dp_name] odp_flow | bridge br_flow} [-generate|packet]"
     # set argument to 'br0', should go to the bridge path.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace br0 TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"br_flow\" is expanded to: br_flow"
+    EXPECT="$(generate_expect_completions "br_flow" "")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "8" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
 
     # check the available completions.
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
-    EXPECT="br_flow"
+    EXPECT=
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "9" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -399,17 +440,19 @@ ofproto/trace {[dp_name] odp_flow | bridge br_flow} [-generate|packet]"
     # set argument to some random string, should go to the odp_flow path.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl ofproto/trace "in_port(123),mac(),ip,tcp" TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"-generate\" is expanded to: -generate
-argument keyword \"packet\" is expanded to: packet"
+    EXPECT="$(generate_expect_completions "-generate" "-generate")
+$(generate_expect_completions "packet" "")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "10" "$TMP" "$EXPEC"T
         TEST_RESULT=fail
         break
     fi
 
     # check the available completions.
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
-    EXPECT="-generate packet"
+    EXPECT="-generate"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "11" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -430,17 +473,19 @@ for i in loop_once; do
     # check the top level completion.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl vlog/set TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"PATTERN:facility:pattern\" is expanded to: PATTERN:facility:pattern
-argument keyword \"spec\" is expanded to: spec"
+    EXPECT="$(generate_expect_completions "PATTERN:facility:pattern" "")
+$(generate_expect_completions "spec" "")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "1" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
 
     # check the available completions.
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
-    EXPECT="PATTERN:facility:pattern spec"
+    EXPECT=
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "2" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -451,6 +496,7 @@ argument keyword \"spec\" is expanded to: spec"
     EXPECT="Command format:
 vlog/set {spec | PATTERN:facility:pattern}"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "3" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -470,19 +516,21 @@ for i in loop_once; do
     # check match on interface, there should be no available interface expansion.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl bfd/set-forwarding TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"normal\" is expanded to: normal
-argument keyword \"false\" is expanded to: false
-argument keyword \"true\" is expanded to: true
-argument keyword \"interface\" is expanded to:"
+    EXPECT="$(generate_expect_completions "normal" "")
+$(generate_expect_completions "false" "")
+$(generate_expect_completions "true" "")
+$(generate_expect_completions "interface" "")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "1" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
 
     # check the available completions.
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
-    EXPECT="false normal true"
+    EXPECT=
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "2" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -490,8 +538,9 @@ argument keyword \"interface\" is expanded to:"
     # check match on port, there should be no p1 as port.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl lacp/show TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"port\" is expanded to: br0"
+    EXPECT="$(generate_expect_completions "port" "br0")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "3" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -500,6 +549,7 @@ argument keyword \"interface\" is expanded to:"
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
     EXPECT="br0"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "4" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -518,8 +568,9 @@ for i in loop_once; do
     # check match on port, there should be no p1 as port.
     COMP_OUTPUT="$(bash ovs-command-compgen.bash debug ovs-appctl bridge/dump-flows TAB 2>&1)"
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
-    EXPECT="argument keyword \"bridge\" is expanded to:"
+    EXPECT="$(generate_expect_completions "bridge" "")"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "1" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -528,6 +579,7 @@ for i in loop_once; do
     TMP="$(get_available_completions "$COMP_OUTPUT" | tr '\n' ' ' | sed -e 's/[ \t]*$//')"
     EXPECT=
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "2" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -538,6 +590,7 @@ for i in loop_once; do
     TMP="$(get_argument_expansion "$COMP_OUTPUT" | sed -e 's/[ \t]*$//')"
     EXPECT=
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "3" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -558,6 +611,7 @@ for i in loop_once; do
     TMP="$(echo "$COMP_OUTPUT" | sed -e 's/[ \t]*$//' | sed -e '/./,$!d')"
     EXPECT=
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "1" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
@@ -566,6 +620,7 @@ for i in loop_once; do
     TMP="$(echo "$COMP_OUTPUT" | sed -e 's/[ \t]*$//' | sed -e '/./!d')"
     EXPECT="Command format:"
     if [ "$TMP" != "$EXPECT" ]; then
+        print_error "2" "$TMP" "$EXPECT"
         TEST_RESULT=fail
         break
     fi
