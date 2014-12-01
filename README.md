@@ -1,6 +1,8 @@
 ovs_command_comp
 ================
 
+NOTE: the project has been applied to upstream open vswitch repo and is no longer maintained here.
+
 Open Vswitch Command Completion, Bash~
 
 Requirement: Open Vswitch installed.
